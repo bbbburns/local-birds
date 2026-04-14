@@ -19,7 +19,7 @@ const CSS = `
     padding: 1.25rem 1.5rem;
   }
   .header-inner { display: flex; align-items: center; gap: 1rem; }
-  .header-cardinal { height: 60px; width: auto; flex-shrink: 0; }
+  .header-cardinal { height: 60px; width: 50px; flex-shrink: 0; }
   .header-nav { margin-left: auto; display: flex; gap: 1rem; flex-shrink: 0; }
   .header-nav a { color: #fff; text-decoration: none; font-size: 1rem; font-weight: 500; white-space: nowrap; }
   .header-nav a:hover { text-decoration: underline; }
@@ -247,7 +247,7 @@ const CSS = `
   @media (max-width: 600px) {
     header { padding: 0.75rem 1rem; }
     .header-inner { flex-wrap: wrap; }
-    .header-cardinal { height: 40px; }
+    .header-cardinal { height: 40px; width: 33px; }
     header h1 { font-size: 1.1rem; }
     header p { font-size: 0.875rem; }
     .header-nav {

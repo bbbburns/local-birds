@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS poll_status (
 ```
 
 Apply with: `wrangler d1 migrations apply birds --local` (dev) or
-`wrangler d1 migrations apply birds` (production).
+`wrangler d1 migrations apply birds --remote` (production).
 
 ## Routes
 
@@ -224,7 +224,7 @@ npm test                                         # vitest (Workers test environm
 
 Deploy to production:
 ```bash
-wrangler d1 migrations apply birds              # run against production D1
+wrangler d1 migrations apply birds --remote     # run against production D1
 wrangler deploy
 ```
 
@@ -236,11 +236,16 @@ To seed production D1 with data from the running Docker deployment:
 # On the host machine, export the SQLite database
 sqlite3 ~/devel/vega-vireos/data/birds.db .dump > /tmp/birds_dump.sql
 
-# Remove WAL pragma and SQLite-specific lines wrangler can't handle
-grep -v "^PRAGMA" /tmp/birds_dump.sql > /tmp/birds_import.sql
+# Strip DDL — keep only INSERT lines (tables already exist from migrations)
+grep "^INSERT" /tmp/birds_dump.sql \
+  | sed 's/^INSERT INTO/INSERT OR REPLACE INTO/' \
+  > /tmp/birds_import.sql
 
 # Import into production D1
-wrangler d1 execute birds --file=/tmp/birds_import.sql
+wrangler d1 execute birds --remote --file=/tmp/birds_import.sql
+
+# For local D1 instead:
+# wrangler d1 execute birds --local --file=/tmp/birds_import.sql
 ```
 
 For local dev, use `--local` flag on the execute command.

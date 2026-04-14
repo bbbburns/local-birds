@@ -8,7 +8,7 @@ crons = ["0 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "birds"
-database_id = "<run: wrangler d1 create birds>"
+database_id = "cca2c12e-adde-4ae8-917a-b1466551c3e0"
 
 [assets]
 directory = "./public"
