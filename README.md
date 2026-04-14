@@ -1,4 +1,4 @@
-# vega-vireos
+# local-birds
 
 <!-- TODO: settle on a custom domain name (something Durham/DCP-themed?) and
      update the Live URL below. Current options: dcpbirds.com, durhambirds.com,
@@ -13,7 +13,7 @@ A bird sighting tracker for Durham Central Park, NC — powered by the
 
 **Live:** https://birds.burns.sh
 
-![Screenshot of the app showing a week strip and a list of bird sightings](https://via.placeholder.com/760x400?text=screenshot)
+Screenshot placeholder.
 
 ## What it does
 
@@ -48,8 +48,8 @@ free tier (100k req/day, 5 GB D1, Cron Triggers included).
 ### Setup
 
 ```bash
-git clone https://github.com/yourusername/vega-vireos-cf
-cd vega-vireos-cf
+git clone https://github.com/bbbburns/local-birds
+cd local-birds
 npm install
 
 # Create the D1 database (copy the database_id into wrangler.toml)
@@ -108,30 +108,6 @@ automatically after deploy. Trigger a manual poll in production:
 ```bash
 curl -X POST https://your-worker.workers.dev/admin/poll \
   -H "Authorization: Bearer <POLL_SECRET>"
-```
-
-### GitHub Actions (optional)
-
-Add a `CLOUDFLARE_API_TOKEN` secret to your repository, then create
-`.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 ```
 
 ## Data notices
