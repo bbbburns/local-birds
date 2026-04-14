@@ -1,0 +1,14 @@
+name = "vega-vireos"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[triggers]
+crons = ["0 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "birds"
+database_id = "<run: wrangler d1 create birds>"
+
+[assets]
+directory = "./public"
