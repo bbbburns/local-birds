@@ -12,3 +12,8 @@ database_id = "cca2c12e-adde-4ae8-917a-b1466551c3e0"
 
 [assets]
 directory = "./public"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
