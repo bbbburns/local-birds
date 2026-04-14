@@ -1,5 +1,13 @@
 # vega-vireos
 
+<!-- TODO: settle on a custom domain name (something Durham/DCP-themed?) and
+     update the Live URL below. Current options: dcpbirds.com, durhambirds.com,
+     or keep birds.burns.sh -->
+
+<!-- TODO: replace the placeholder image below with a real screenshot -->
+
+<!-- TODO: create GitHub repo, push, and update the git clone URL in Setup -->
+
 A bird sighting tracker for Durham Central Park, NC — powered by the
 [eBird API](https://ebird.org) and running entirely on Cloudflare's free tier.
 
