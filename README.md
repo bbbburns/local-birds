@@ -4,15 +4,12 @@
      update the Live URL below. Options: dcpbirds.com, durhambirds.com,
      or keep birds.burns.sh -->
 
-<!-- TODO: replace the placeholder image below with a real screenshot -->
-
-
 A bird sighting tracker for Durham Central Park, NC — powered by the
 [eBird API](https://ebird.org) and running entirely on Cloudflare's free tier.
 
 **Live:** https://birds.burns.sh
 
-Screenshot placeholder.
+![List of birds seen in Durham Central Park](img/screenshot.png)
 
 ## What it does
 
