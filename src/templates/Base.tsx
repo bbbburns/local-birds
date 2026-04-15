@@ -97,7 +97,8 @@ const CSS = `
   .week-day.is-today { border: 2px solid #2d5a27; }
   .week-day.has-data-today { cursor: pointer; }
   .week-day.has-data-today:hover { background: #f0f0eb; }
-  .week-day.is-selected { background: #2d5a27; color: #fff; border-color: #2d5a27; }
+  .week-day.is-selected,
+  .week-day.is-selected:hover { background: #2d5a27; color: #fff; border-color: #2d5a27; }
   .week-day.is-selected .week-day-name { color: #fff; }
   .week-day.is-future { color: #999; }
   .week-day-name { font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.04em; }
