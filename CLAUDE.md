@@ -224,9 +224,13 @@ npm test                                         # vitest (Workers test environm
 
 Deploy to production:
 ```bash
-wrangler d1 migrations apply birds --remote     # run against production D1
-wrangler deploy
+wrangler d1 migrations apply birds --remote     # run against production D1 (manual step)
+git push                                        # triggers Cloudflare auto-build and deploy
 ```
+
+**Note:** `wrangler deploy` is no longer used — the repo is connected to Cloudflare's
+CI/CD pipeline which deploys automatically on push to `main`. Migrations must still
+be applied manually with `--remote` since the build pipeline does not run them.
 
 ## Data Migration (from existing birds.db)
 
@@ -267,7 +271,7 @@ Work through these in order. Each step is independently testable with
 - [x] 10. Copy static assets: `app/static/` → `public/` (htmx.min.js, favicon.svg, cardinal.svg)
 - [x] 11. Set secrets (`EBIRD_API_KEY`, `POLL_SECRET`) and test locally with `.dev.vars`
 - [x] 12. Write tests with vitest (Workers pool)
-- [ ] 13. Deploy to production and run data migration
+- [x] 13. Deploy to production and run data migration
 - [ ] 14. Point custom domain at the Worker in Cloudflare dashboard
 
 ## Deviations from Original Python App
@@ -278,9 +282,11 @@ bug fix that was not backported to the original.
 | Area | Deviation |
 |---|---|
 | `src/db.ts` `upsertSightings` | No longer takes a `pollDate` param. Creates `sighting_days` rows per unique `obs_date` in the records (not per poll date). The original only writes one row for today, so the week strip highlights the poll day rather than the days birds were actually seen — a bug. See `../vega-vireos/CLAUDE.md` for the Python fix. |
-| `src/routes.tsx` | File is `.tsx` (not `.ts`) since it contains JSX. |
+| `src/db.ts` `upsertSightings` | Chunks D1 batch into ≤100 statements to stay within D1's hard limit. Accepts `preserveExisting` option that switches to `INSERT OR IGNORE` (used when the notable endpoint fails, to avoid overwriting existing `notable` values with 0). |
+| `src/db.ts` `getStaleThumbnails` | Adds `LIMIT 20` to cap concurrent Macaulay API calls per poll cycle. |
+| `src/routes.tsx` | File is `.tsx` (not `.ts`) since it contains JSX. Validates `anchor` and `obsDate` URL params with `isValidDate()` — returns 400 for malformed input. |
 | `src/calendarUtil.ts` `buildWeekGrid` | Accepts `anchor: string` (ISO date) instead of `anchorDate: Date` to avoid timezone-on-construction issues. |
-| `src/poller.ts` | Both eBird fetches (recent + notable) run in parallel via `Promise.all`. Original makes them sequentially. |
+| `src/poller.ts` | Both eBird fetches (recent + notable) run in parallel via `Promise.all`. Original makes them sequentially. Notable endpoint failure sets `notableKeys=null` (skips overwriting notable) rather than falling back to an empty set. |
 | Asset paths | `/htmx.min.js`, `/cardinal.svg`, `/favicon.svg` — no `/static/` prefix (Workers Assets serves `public/` at root). |
 | Admin auth | Original restricts `/admin/poll` to `127.0.0.1`. Workers has no localhost concept; replaced with `Authorization: Bearer <POLL_SECRET>`. |
 
@@ -293,8 +299,8 @@ npm test   # vitest with @cloudflare/vitest-pool-workers
 Tests run inside the Workers runtime (Miniflare). `test/setup.ts` applies the
 D1 schema via `beforeAll` before each test file. Three test files:
 - `test/calendarUtil.test.ts` — pure date arithmetic (11 tests)
-- `test/db.test.ts` — D1 query wrappers (15 tests)
-- `test/routes.test.ts` — HTTP integration via `SELF` (12 tests)
+- `test/db.test.ts` — D1 query wrappers (17 tests)
+- `test/routes.test.ts` — HTTP integration via `SELF` (15 tests)
 
 **vitest config note**: uses `cloudflareTest` as a Vite plugin (not
 `cloudflarePool` directly). `cloudflareTest` registers the `resolveId`/`load`

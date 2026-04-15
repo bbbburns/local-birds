@@ -89,17 +89,21 @@ Three test suites run inside the Workers runtime via
 
 ## Deployment
 
+**First-time setup:**
 ```bash
-# Set production secrets
+# Set production secrets (one-time)
 npx wrangler secret put EBIRD_API_KEY
 npx wrangler secret put POLL_SECRET
 
-# Apply schema to production D1
+# Apply schema to production D1 (one-time)
 npx wrangler d1 migrations apply birds --remote
-
-# Deploy
-npx wrangler deploy
 ```
+
+**Ongoing deploys:** push to `main` — Cloudflare's CI/CD pipeline builds and
+deploys automatically.
+
+**When a new migration is added:** run `npx wrangler d1 migrations apply birds --remote`
+manually before or after pushing, since the build pipeline does not run migrations.
 
 The cron trigger (`0 * * * *`) is configured in `wrangler.toml` and activates
 automatically after deploy. Trigger a manual poll in production:
