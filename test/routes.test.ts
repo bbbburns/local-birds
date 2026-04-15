@@ -1,14 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { upsertSightings, updatePollStatus } from '../src/db';
+import { todayEastern } from '../src/calendarUtil';
 import type { Env } from '../src/types';
 
 declare module 'cloudflare:test' {
   interface ProvidedEnv extends Env {}
 }
 
+const TODAY = todayEastern();
+
 const sighting = {
-  obs_date: '2026-04-14',
+  obs_date: TODAY,
   species_code: 'norcar',
   common_name: 'Northern Cardinal',
   sci_name: 'Cardinalis cardinalis',
@@ -68,6 +71,14 @@ describe('GET /week/:anchor', () => {
     const res = await SELF.fetch('http://localhost/week/2026-04-07');
     const body = await res.text();
     expect(body).toContain('has-data');
+  });
+
+  it('today is clickable even with no sightings yet', async () => {
+    // anchor on today — DB is empty, so today has no sighting_days entry
+    const res = await SELF.fetch(`http://localhost/week/${TODAY}`);
+    const body = await res.text();
+    // today's cell should carry hx-get even without sightings data
+    expect(body).toContain(`hx-get="/day/${TODAY}"`);
   });
 });
 

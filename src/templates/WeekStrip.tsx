@@ -60,6 +60,7 @@ export function WeekStrip({
           const classes = [
             'week-day',
             cell.hasData && 'has-data',
+            (cell.isToday && !cell.hasData) && 'has-data-today',
             cell.isToday && 'is-today',
             cell.isFuture && 'is-future',
             cell.date === selectedDate && 'is-selected',
@@ -67,7 +68,7 @@ export function WeekStrip({
             .filter(Boolean)
             .join(' ');
 
-          const htmxProps = cell.hasData
+          const htmxProps = (cell.hasData || cell.isToday)
             ? {
                 'hx-get': `/day/${cell.date}`,
                 'hx-target': '#day-detail',

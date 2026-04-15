@@ -95,6 +95,8 @@ const CSS = `
   }
   .week-day.has-data:hover { background: #c8e6c0; }
   .week-day.is-today { border: 2px solid #2d5a27; }
+  .week-day.has-data-today { cursor: pointer; }
+  .week-day.has-data-today:hover { background: #f0f0eb; }
   .week-day.is-selected { background: #2d5a27; color: #fff; border-color: #2d5a27; }
   .week-day.is-selected .week-day-name { color: #fff; }
   .week-day.is-future { color: #999; }
