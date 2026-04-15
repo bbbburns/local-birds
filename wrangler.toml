@@ -16,6 +16,7 @@ directory = "./public"
 [[routes]]
 pattern = "birds.burns.sh"
 custom_domain = true
+override_existing_dns_record = true
 
 [observability]
 [observability.logs]
