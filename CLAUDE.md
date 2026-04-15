@@ -272,7 +272,7 @@ Work through these in order. Each step is independently testable with
 - [x] 11. Set secrets (`EBIRD_API_KEY`, `POLL_SECRET`) and test locally with `.dev.vars`
 - [x] 12. Write tests with vitest (Workers pool)
 - [x] 13. Deploy to production and run data migration
-- [ ] 14. Point custom domain at the Worker in Cloudflare dashboard
+- [x] 14. Point custom domain at the Worker in Cloudflare dashboard
 
 ## Deviations from Original Python App
 
