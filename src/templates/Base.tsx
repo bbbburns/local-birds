@@ -185,12 +185,17 @@ const CSS = `
 
   .htmx-indicator { display: none; }
   .htmx-request .htmx-indicator,
-  .htmx-request.htmx-indicator { display: inline-block; }
+  .htmx-request.htmx-indicator { display: flex; }
   .loading-spinner {
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.75);
+    border-radius: 8px;
     color: #666;
     font-size: 0.9rem;
-    padding: 1rem;
-    text-align: center;
+    z-index: 1;
   }
 
   .error-banner {

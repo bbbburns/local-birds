@@ -72,13 +72,15 @@ export function IndexPage({
       <div id="htmx-error" class="error-banner">
         Something went wrong loading data. Please try again or refresh the page.
       </div>
-      <div id="day-loading" class="loading-spinner htmx-indicator">Loading…</div>
-      <div id="day-detail">
-        {sightings != null && displayDate != null ? (
-          <DayDetail sightings={sightings} displayDate={displayDate} />
-        ) : (
-          <p class="no-sightings">Tap a highlighted date to see sightings.</p>
-        )}
+      <div style="position:relative;">
+        <div id="day-loading" class="loading-spinner htmx-indicator">Loading…</div>
+        <div id="day-detail">
+          {sightings != null && displayDate != null ? (
+            <DayDetail sightings={sightings} displayDate={displayDate} />
+          ) : (
+            <p class="no-sightings">Tap a highlighted date to see sightings.</p>
+          )}
+        </div>
       </div>
     </Base>
   );
