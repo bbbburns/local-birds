@@ -71,6 +71,24 @@ describe('upsertSightings / getSightingsForDate', () => {
     expect(results[0].notable).toBe(1);
     expect(results[1].notable).toBe(0);
   });
+
+  it('handles >100 records without exceeding D1 batch limit', async () => {
+    const records = Array.from({ length: 110 }, (_, i) => ({
+      ...sighting,
+      species_code: `sp${i.toString().padStart(3, '0')}`,
+      common_name: `Species ${i}`,
+    }));
+    await expect(upsertSightings(db(), records)).resolves.toBeUndefined();
+    const results = await getSightingsForDate(db(), sighting.obs_date);
+    expect(results).toHaveLength(110);
+  });
+
+  it('preserveExisting keeps existing notable values when notable endpoint fails', async () => {
+    await upsertSightings(db(), [{ ...sighting, notable: 1 }]);
+    await upsertSightings(db(), [{ ...sighting, notable: 0 }], { preserveExisting: true });
+    const results = await getSightingsForDate(db(), sighting.obs_date);
+    expect(results[0].notable).toBe(1);
+  });
 });
 
 describe('getSightedDatesInRange', () => {

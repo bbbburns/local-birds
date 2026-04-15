@@ -80,6 +80,11 @@ describe('GET /week/:anchor', () => {
     // today's cell should carry hx-get even without sightings data
     expect(body).toContain(`hx-get="/day/${TODAY}"`);
   });
+
+  it('returns 400 for a malformed anchor date', async () => {
+    const res = await SELF.fetch('http://localhost/week/notadate');
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('GET /day/:obsDate', () => {
@@ -97,6 +102,11 @@ describe('GET /day/:obsDate', () => {
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain('No birds were spotted');
+  });
+
+  it('returns 400 for a malformed obs date', async () => {
+    const res = await SELF.fetch('http://localhost/day/notadate');
+    expect(res.status).toBe(400);
   });
 });
 

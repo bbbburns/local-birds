@@ -35,10 +35,14 @@ export async function getPollStatus(db: D1Database): Promise<PollStatus | null> 
 
 export async function upsertSightings(
   db: D1Database,
-  records: Omit<Sighting, 'id' | 'thumbnail_url'>[]
+  records: Omit<Sighting, 'id' | 'thumbnail_url'>[],
+  opts: { preserveExisting?: boolean } = {}
 ): Promise<void> {
   if (records.length === 0) return;
   const now = new Date().toISOString();
+  // INSERT OR IGNORE when notable data is unavailable — keeps existing notable
+  // values intact. INSERT OR REPLACE otherwise (normal path).
+  const sightingOp = opts.preserveExisting ? 'INSERT OR IGNORE' : 'INSERT OR REPLACE';
   // One sighting_days row per unique observation date (not per poll date) so
   // the week strip highlights the days birds were actually seen, not just the
   // day the poller happened to run.
@@ -51,7 +55,7 @@ export async function upsertSightings(
     ),
     ...records.map((r) =>
       db.prepare(
-        `INSERT OR REPLACE INTO sightings
+        `${sightingOp} INTO sightings
          (obs_date, species_code, common_name, sci_name, location_name, how_many,
           obs_valid, obs_reviewed, sub_id, notable)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -61,7 +65,11 @@ export async function upsertSightings(
       )
     ),
   ];
-  await db.batch(statements);
+  // D1 hard limit is 100 statements per batch — chunk to stay safe.
+  const BATCH_LIMIT = 100;
+  for (let i = 0; i < statements.length; i += BATCH_LIMIT) {
+    await db.batch(statements.slice(i, i + BATCH_LIMIT));
+  }
 }
 
 export async function updatePollStatus(
@@ -88,11 +96,11 @@ export async function getSpeciesMissingThumbnails(
   return new Set(speciesCodes.filter((c) => !alreadyFetched.has(c)));
 }
 
-export async function getStaleThumbnails(db: D1Database, maxAgeDays = 30): Promise<string[]> {
+export async function getStaleThumbnails(db: D1Database, maxAgeDays = 30, limit = 20): Promise<string[]> {
   const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString();
   const { results } = await db.prepare(
-    `SELECT species_code FROM species WHERE fetched_at < ?`
-  ).bind(cutoff).all<{ species_code: string }>();
+    `SELECT species_code FROM species WHERE fetched_at < ? LIMIT ?`
+  ).bind(cutoff, limit).all<{ species_code: string }>();
   return results.map((r) => r.species_code);
 }
 

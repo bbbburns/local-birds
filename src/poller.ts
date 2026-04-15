@@ -50,16 +50,17 @@ async function fetchThumbnails(
     console.warn('Thumbnail fetch failed — sightings unaffected', err);
   }
 
-  // Stale species: refresh thumbnails older than 30 days.
+  // Stale species: refresh thumbnails older than 30 days (capped at 20 per poll).
   try {
     const stale = await getStaleThumbnails(db);
     if (stale.length > 0) {
       console.log(`Refreshing ${stale.length} stale thumbnails`);
       const urls = await Promise.all(stale.map(fetchThumbnail));
+      // Preserve original indices when filtering so codes stay aligned with urls.
       await Promise.all(
-        stale
-          .filter((_, i) => urls[i] !== null)
-          .map((code, i) => upsertSpeciesThumbnail(db, code, urls[i]))
+        stale.map((code, i) =>
+          urls[i] !== null ? upsertSpeciesThumbnail(db, code, urls[i]) : Promise.resolve()
+        )
       );
     }
   } catch (err) {
@@ -80,7 +81,7 @@ export async function runPoll(env: Env): Promise<void> {
 
   // --- Main observations + notable (parallel) ---
   let observations: unknown[];
-  let notableKeys: Set<string>;
+  let notableKeys: Set<string> | null;
 
   try {
     const obsUrl = new URL(EBIRD_URL);
@@ -106,19 +107,23 @@ export async function runPoll(env: Env): Promise<void> {
     }
 
     if (!obsResp.ok) throw new Error(`eBird HTTP ${obsResp.status}`);
-    observations = await obsResp.json() as unknown[];
+    const obsJson = await obsResp.json();
+    if (!Array.isArray(obsJson)) throw new Error('eBird response was not an array');
+    observations = obsJson;
     console.log(`eBird returned ${observations.length} observations`);
 
-    notableKeys = new Set<string>();
     if (notableResp.ok) {
+      notableKeys = new Set<string>();
       const notableObs = await notableResp.json() as { obsDt: string; speciesCode: string }[];
       for (const obs of notableObs) {
         notableKeys.add(`${obs.obsDt.slice(0, 10)}:${obs.speciesCode}`);
       }
       if (notableKeys.size > 0) console.log(`eBird notable: ${notableKeys.size} rare species`);
     } else {
-      console.warn('Notable endpoint failed — marking all as common');
-      notableKeys = new Set();
+      // Don't fall back to empty set — that would mark all new records as non-notable.
+      // Leave notableKeys null so the upsert preserves existing notable values in DB.
+      console.warn('Notable endpoint failed — skipping notable update this cycle');
+      notableKeys = null;
     }
   } catch (err) {
     console.error('Failed to fetch eBird data', err);
@@ -142,10 +147,12 @@ export async function runPoll(env: Env): Promise<void> {
     obs_valid: obs.obsValid !== false ? 1 : 0,
     obs_reviewed: obs.obsReviewed ? 1 : 0,
     sub_id: obs.subId ?? null,
-    notable: notableKeys.has(`${obs.obsDt.slice(0, 10)}:${obs.speciesCode}`) ? 1 : 0,
+    notable: notableKeys?.has(`${obs.obsDt.slice(0, 10)}:${obs.speciesCode}`) ? 1 : 0,
   }));
 
-  await upsertSightings(env.DB, records);
+  // When notable endpoint failed, use INSERT OR IGNORE so existing notable values
+  // in the DB are preserved rather than overwritten with 0.
+  await upsertSightings(env.DB, records, { preserveExisting: notableKeys === null });
   const dates = [...new Set(records.map((r) => r.obs_date))].join(', ');
   console.log(`Stored ${records.length} sightings across ${dates}`);
   await updatePollStatus(env.DB, now, true, records.length);

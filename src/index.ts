@@ -5,6 +5,10 @@ import type { Env } from './types';
 export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
-    await runPoll(env);
+    try {
+      await runPoll(env);
+    } catch (err) {
+      console.error('Unexpected error in scheduled poll', err);
+    }
   },
 };

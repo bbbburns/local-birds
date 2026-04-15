@@ -35,6 +35,11 @@ function formatDisplayDate(isoDate: string): string {
   }).format(new Date(isoDate + 'T00:00:00Z'));
 }
 
+// Returns true for well-formed YYYY-MM-DD calendar dates.
+function isValidDate(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
+}
+
 // Clamp a date string to today if it's in the future.
 function clampToToday(isoDate: string, today: string): string {
   return isoDate > today ? today : isoDate;
@@ -76,7 +81,9 @@ app.get('/', async (c) => {
 
 app.get('/week/:anchor', async (c) => {
   const today = todayEastern();
-  const anchor = clampToToday(c.req.param('anchor'), today);
+  const rawAnchor = c.req.param('anchor');
+  if (!isValidDate(rawAnchor)) return c.text('Invalid date', 400);
+  const anchor = clampToToday(rawAnchor, today);
 
   const anchorDate = new Date(anchor + 'T12:00:00Z');
   const windowStart = new Date(anchorDate);
@@ -94,6 +101,7 @@ app.get('/week/:anchor', async (c) => {
 
 app.get('/day/:obsDate', async (c) => {
   const obsDate = c.req.param('obsDate');
+  if (!isValidDate(obsDate)) return c.text('Invalid date', 400);
   const sightings = await getSightingsForDate(c.env.DB, obsDate);
   return c.html(
     renderToString(
@@ -107,7 +115,12 @@ app.post('/admin/poll', async (c) => {
   if (!auth || auth !== `Bearer ${c.env.POLL_SECRET}`) {
     return c.text('Unauthorized', 401);
   }
-  await runPoll(c.env);
+  try {
+    await runPoll(c.env);
+  } catch (err) {
+    console.error('Unexpected error in /admin/poll', err);
+    return c.text('Poll failed', 500);
+  }
   return c.redirect('/');
 });
 
