@@ -33,6 +33,18 @@ export async function getPollStatus(db: D1Database): Promise<PollStatus | null> 
   return db.prepare(`SELECT * FROM poll_status WHERE id = 1`).first<PollStatus>();
 }
 
+export async function countUniqueSpeciesInRange(
+  db: D1Database,
+  startDate: string,
+  endDate: string
+): Promise<number> {
+  const row = await db.prepare(
+    `SELECT COUNT(DISTINCT species_code) AS count
+     FROM sightings WHERE obs_date >= ? AND obs_date <= ?`
+  ).bind(startDate, endDate).first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
 export async function upsertSightings(
   db: D1Database,
   records: Omit<Sighting, 'id' | 'thumbnail_url'>[],

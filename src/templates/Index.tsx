@@ -2,6 +2,7 @@ import type { Sighting, PollStatus, WeekGrid } from '../types';
 import { Base } from './Base';
 import { WeekStrip } from './WeekStrip';
 import { DayDetail } from './DayDetail';
+import { SpeciesSummaryBar } from './SpeciesSummaryBar';
 
 function formatEastern(isoString: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -49,6 +50,7 @@ export function IndexPage({
   displayDate,
   pollStatus,
   latest,
+  speciesCount,
 }: {
   weekGrid: WeekGrid;
   sightings: Sighting[] | null;
@@ -56,6 +58,7 @@ export function IndexPage({
   displayDate: string | null;
   pollStatus: PollStatus | null;
   latest: string | null;
+  speciesCount: number;
 }) {
   const footerExtra = pollStatus ? <PollFooter pollStatus={pollStatus} /> : undefined;
 
@@ -68,6 +71,7 @@ export function IndexPage({
       )}
       <div id="week-strip-container">
         <WeekStrip weekGrid={weekGrid} selectedDate={initialDate ?? undefined} />
+        <SpeciesSummaryBar weekGrid={weekGrid} speciesCount={speciesCount} />
       </div>
       <div id="htmx-error" class="error-banner">
         Something went wrong loading data. Please try again or refresh the page.

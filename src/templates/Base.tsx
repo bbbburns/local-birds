@@ -104,6 +104,14 @@ const CSS = `
   .week-day-name { font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.04em; }
   .week-day-num { font-size: 1rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
+  .species-summary {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #555;
+    padding: 6px 0 4px;
+    letter-spacing: 0.02em;
+  }
+
   /* Day detail */
   #day-detail {
     background: #fff;

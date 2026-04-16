@@ -6,11 +6,13 @@ import {
   getSightedDatesInRange,
   getLatestPolledDate,
   getPollStatus,
+  countUniqueSpeciesInRange,
 } from './db';
 import { buildWeekGrid, todayEastern } from './calendarUtil';
 import { runPoll } from './poller';
 import { IndexPage } from './templates/Index';
 import { WeekStrip } from './templates/WeekStrip';
+import { SpeciesSummaryBar } from './templates/SpeciesSummaryBar';
 import { DayDetail } from './templates/DayDetail';
 import { HowItWorks } from './templates/HowItWorks';
 import { HowToContribute } from './templates/HowToContribute';
@@ -55,11 +57,12 @@ app.get('/', async (c) => {
   sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6);
   const windowStart = sixDaysAgo.toISOString().slice(0, 10);
 
-  const [sightedDates, todaySightings, latest, pollStatus] = await Promise.all([
+  const [sightedDates, todaySightings, latest, pollStatus, speciesCount] = await Promise.all([
     getSightedDatesInRange(c.env.DB, windowStart, today),
     getSightingsForDate(c.env.DB, today),
     getLatestPolledDate(c.env.DB),
     getPollStatus(c.env.DB),
+    countUniqueSpeciesInRange(c.env.DB, windowStart, today),
   ]);
 
   const weekGrid = buildWeekGrid(today, sightedDates);
@@ -74,6 +77,7 @@ app.get('/', async (c) => {
         displayDate={hasTodaySightings ? formatDisplayDate(today) : null}
         pollStatus={pollStatus}
         latest={latest}
+        speciesCount={speciesCount}
       />
     )
   );
@@ -89,14 +93,19 @@ app.get('/week/:anchor', async (c) => {
   const windowStart = new Date(anchorDate);
   windowStart.setUTCDate(anchorDate.getUTCDate() - 6);
 
-  const sightedDates = await getSightedDatesInRange(
-    c.env.DB,
-    windowStart.toISOString().slice(0, 10),
-    anchor
-  );
+  const windowStartStr = windowStart.toISOString().slice(0, 10);
+  const [sightedDates, speciesCount] = await Promise.all([
+    getSightedDatesInRange(c.env.DB, windowStartStr, anchor),
+    countUniqueSpeciesInRange(c.env.DB, windowStartStr, anchor),
+  ]);
 
   const weekGrid = buildWeekGrid(anchor, sightedDates);
-  return c.html(renderToString(<WeekStrip weekGrid={weekGrid} />));
+  return c.html(renderToString(
+    <>
+      <WeekStrip weekGrid={weekGrid} />
+      <SpeciesSummaryBar weekGrid={weekGrid} speciesCount={speciesCount} />
+    </>
+  ));
 });
 
 app.get('/day/:obsDate', async (c) => {

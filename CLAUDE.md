@@ -143,11 +143,12 @@ HTMX attributes (`hx-get`, `hx-target`, etc.) pass through as-is.
 | Template | File | Exports |
 |---|---|---|
 | `base.html` | `src/templates/Base.tsx` | `<Base title={...}>children</Base>` |
-| `index.html` | `src/templates/Index.tsx` | `<IndexPage weekGrid sightings pollStatus />` |
+| `index.html` | `src/templates/Index.tsx` | `<IndexPage weekGrid sightings pollStatus speciesCount />` |
 | `week_strip.html` | `src/templates/WeekStrip.tsx` | `<WeekStrip weekGrid />` |
 | `day_detail.html` | `src/templates/DayDetail.tsx` | `<DayDetail sightings date />` |
 | `how_it_works.html` | `src/templates/HowItWorks.tsx` | `<HowItWorks />` |
 | `how_to_contribute.html` | `src/templates/HowToContribute.tsx` | `<HowToContribute />` |
+| *(new)* | `src/templates/SpeciesSummaryBar.tsx` | `<SpeciesSummaryBar weekGrid speciesCount />` |
 
 The full CSS lives in `base.html` inline — copy it verbatim into `Base.tsx`.
 Do not move it to a separate file; keeping it inline avoids an extra HTTP
@@ -162,6 +163,9 @@ request and matches the original's approach.
 - `selected_date` is only meaningful on the initial full-page render; the
   `/week/:anchor` fragment route does not need to pass it (no cell will be
   highlighted on week navigation, which matches the original Flask behavior)
+- `SpeciesSummaryBar` lives inside `#week-strip-container` so it updates
+  automatically on week navigation without any out-of-band swaps; it is
+  unaffected by day clicks (which only swap `#day-detail`)
 
 ## Calendar Utility
 
