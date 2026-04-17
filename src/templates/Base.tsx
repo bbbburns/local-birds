@@ -318,9 +318,9 @@ export function Base({
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Durham Central Park — Bird Sightings</title>
-        <meta name="description" content="Recent bird sightings at Durham Central Park, NC — updated hourly via eBird." />
-        <meta property="og:title" content="Durham Central Park — Bird Sightings" />
-        <meta property="og:description" content="Recent bird sightings at Durham Central Park, NC — updated hourly via eBird." />
+        <meta name="description" content="Browse recent bird sightings at Durham Central Park in Durham, NC. Updated hourly with data from eBird — see what species have been spotted this week." />
+        <meta property="og:title" content="Durham Central Park — Bird Sightings · Durham, NC" />
+        <meta property="og:description" content="Browse recent bird sightings at Durham Central Park in Durham, NC. Updated hourly with data from eBird — see what species have been spotted this week." />
         <meta property="og:image" content="https://birds.burns.sh/cardinal-card.png" />
         <meta property="og:url" content="https://birds.burns.sh/" />
         <meta property="og:type" content="website" />
