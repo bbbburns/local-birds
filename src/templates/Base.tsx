@@ -318,6 +318,13 @@ export function Base({
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Durham Central Park — Bird Sightings</title>
+        <meta name="description" content="Recent bird sightings at Durham Central Park, NC — updated hourly via eBird." />
+        <meta property="og:title" content="Durham Central Park — Bird Sightings" />
+        <meta property="og:description" content="Recent bird sightings at Durham Central Park, NC — updated hourly via eBird." />
+        <meta property="og:image" content="https://birds.burns.sh/cardinal-card.png" />
+        <meta property="og:url" content="https://birds.burns.sh/" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
         <link rel="preload" href="/cardinal.svg" as="image" type="image/svg+xml" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="apple-touch-icon" href="/favicon.svg" />
