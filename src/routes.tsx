@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { renderToString } from 'hono/jsx/dom/server';
+import { RegExpRouter } from 'hono/router/reg-exp-router';
 import type { Env } from './types';
 import {
   getSightingsForDate,
@@ -17,13 +17,17 @@ import { DayDetail } from './templates/DayDetail';
 import { HowItWorks } from './templates/HowItWorks';
 import { HowToContribute } from './templates/HowToContribute';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env }>({ router: new RegExpRouter() });
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function page(jsx: Parameters<typeof renderToString>[0]): string {
+function renderToString(element: JSX.Element): string {
+  return element?.toString() ?? '';
+}
+
+function page(jsx: JSX.Element): string {
   return '<!DOCTYPE html>' + renderToString(jsx);
 }
 
