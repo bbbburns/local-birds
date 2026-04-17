@@ -27,14 +27,16 @@ function page(jsx: Parameters<typeof renderToString>[0]): string {
   return '<!DOCTYPE html>' + renderToString(jsx);
 }
 
+const DISPLAY_DATE_FMT = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
 function formatDisplayDate(isoDate: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(isoDate + 'T00:00:00Z'));
+  return DISPLAY_DATE_FMT.format(new Date(isoDate + 'T00:00:00Z'));
 }
 
 // Returns true for well-formed YYYY-MM-DD calendar dates.

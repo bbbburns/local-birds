@@ -1,9 +1,9 @@
 import type { WeekGrid } from '../types';
 
+const DAY_ABBR_FMT = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
+
 function dayAbbr(isoDate: string): string {
-  return new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(
-    new Date(isoDate + 'T00:00:00Z')
-  );
+  return DAY_ABBR_FMT.format(new Date(isoDate + 'T00:00:00Z'));
 }
 
 function dayNum(isoDate: string): number {
@@ -79,11 +79,12 @@ export function WeekStrip({
               }
             : {};
 
+          const abbr = dayAbbr(cell.date);
           return (
             <div class={classes} {...htmxProps}>
               <span class="week-day-name">
-                <span class="day-full">{dayAbbr(cell.date)}</span>
-                <span class="day-short">{dayAbbr(cell.date).slice(0, 1)}</span>
+                <span class="day-full">{abbr}</span>
+                <span class="day-short">{abbr.slice(0, 1)}</span>
               </span>
               <span class="week-day-num">{dayNum(cell.date)}</span>
             </div>

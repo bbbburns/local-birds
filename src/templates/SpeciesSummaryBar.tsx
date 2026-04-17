@@ -1,16 +1,15 @@
 import type { WeekGrid } from '../types';
 
-function fmtUtc(isoDate: string, opts: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat('en-US', { ...opts, timeZone: 'UTC' }).format(
-    new Date(isoDate + 'T00:00:00Z')
-  );
-}
+const MONTH_FMT = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
+const DAY_NUM_FMT = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' });
 
 function formatWeekRange(startDate: string, endDate: string): string {
-  const startMonth = fmtUtc(startDate, { month: 'short' });
-  const endMonth = fmtUtc(endDate, { month: 'short' });
-  const startDay = fmtUtc(startDate, { day: 'numeric' });
-  const endDay = fmtUtc(endDate, { day: 'numeric' });
+  const startD = new Date(startDate + 'T00:00:00Z');
+  const endD = new Date(endDate + 'T00:00:00Z');
+  const startMonth = MONTH_FMT.format(startD);
+  const endMonth = MONTH_FMT.format(endD);
+  const startDay = DAY_NUM_FMT.format(startD);
+  const endDay = DAY_NUM_FMT.format(endD);
 
   if (startMonth === endMonth) {
     return `${startMonth} ${startDay}\u2013${endDay}`;

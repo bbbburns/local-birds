@@ -4,26 +4,30 @@ import { WeekStrip } from './WeekStrip';
 import { DayDetail } from './DayDetail';
 import { SpeciesSummaryBar } from './SpeciesSummaryBar';
 
+const EASTERN_DT_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
+const EASTERN_TIME_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
 function formatEastern(isoString: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(new Date(isoString));
+  return EASTERN_DT_FMT.format(new Date(isoString));
 }
 
 function nextPollTime(): string {
   const now = Date.now();
   const nextHour = new Date(Math.ceil((now + 1) / 3_600_000) * 3_600_000);
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(nextHour);
+  return EASTERN_TIME_FMT.format(nextHour);
 }
 
 function PollFooter({ pollStatus }: { pollStatus: PollStatus }) {
