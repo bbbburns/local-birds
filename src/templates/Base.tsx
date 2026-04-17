@@ -318,6 +318,7 @@ export function Base({
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Durham Central Park — Bird Sightings</title>
+        <link rel="preload" href="/cardinal.svg" as="image" type="image/svg+xml" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="apple-touch-icon" href="/favicon.svg" />
         <script src="/htmx.min.js" />
