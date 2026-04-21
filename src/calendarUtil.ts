@@ -21,7 +21,7 @@ function fmt(isoDate: string, opts: Intl.DateTimeFormatOptions): string {
 }
 
 // Earliest date for which data exists; prevents back-navigation before this.
-export const EARLIEST_DATE = '2025-04-04';
+export const EARLIEST_DATE = '2026-04-03';
 
 // Port of calendar_util.py:build_week_grid.
 // anchor is the rightmost (most recent) day in the 7-cell strip; it must be
@@ -54,7 +54,7 @@ export function buildWeekGrid(anchor: string, sightedDates: Set<string>): WeekGr
     cells,
     prevAnchor,
     nextAnchor,
-    canGoPrev: addDays(prevAnchor, -6) >= EARLIEST_DATE,
+    canGoPrev: prevAnchor >= EARLIEST_DATE,
     canGoNext: nextAnchor <= today,
     label,
   };
