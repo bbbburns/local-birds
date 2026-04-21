@@ -293,6 +293,7 @@ bug fix that was not backported to the original.
 | `src/poller.ts` | Both eBird fetches (recent + notable) run in parallel via `Promise.all`. Original makes them sequentially. Notable endpoint failure sets `notableKeys=null` (skips overwriting notable) rather than falling back to an empty set. |
 | Asset paths | `/htmx.min.js`, `/cardinal.svg`, `/favicon.svg` — no `/static/` prefix (Workers Assets serves `public/` at root). |
 | Admin auth | Original restricts `/admin/poll` to `127.0.0.1`. Workers has no localhost concept; replaced with `Authorization: Bearer <POLL_SECRET>`. |
+| `src/templates/WeekStrip.tsx` | Past days with no sightings are clickable (show "No birds were spotted on this date."). Original only made days with data clickable. Days remain visually inactive; only future days are non-clickable. |
 
 ## Testing
 
