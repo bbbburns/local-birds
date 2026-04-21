@@ -37,6 +37,7 @@ export interface WeekGrid {
   cells: WeekCell[];
   prevAnchor: string; // ISO date string
   nextAnchor: string; // ISO date string
+  canGoPrev: boolean;
   canGoNext: boolean;
   label: string; // e.g. "April 2026" or "Mar – Apr 2026"
 }

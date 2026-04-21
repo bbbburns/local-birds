@@ -22,17 +22,21 @@ export function WeekStrip({
   return (
     <>
       <div class="week-nav">
-        <button
-          class="nav-btn"
-          aria-label="Previous week"
-          {...{
-            'hx-get': `/week/${weekGrid.prevAnchor}`,
-            'hx-target': '#week-strip-container',
-            'hx-swap': 'innerHTML',
-          }}
-        >
-          ←
-        </button>
+        {weekGrid.canGoPrev ? (
+          <button
+            class="nav-btn"
+            aria-label="Previous week"
+            {...{
+              'hx-get': `/week/${weekGrid.prevAnchor}`,
+              'hx-target': '#week-strip-container',
+              'hx-swap': 'innerHTML',
+            }}
+          >
+            ←
+          </button>
+        ) : (
+          <button class="nav-btn" disabled aria-label="Previous week">←</button>
+        )}
         <span class="week-label">{weekGrid.label}</span>
         <div class="nav-right">
           {!isCurrentWeek && (
