@@ -7,6 +7,7 @@ import {
   getLatestPolledDate,
   getPollStatus,
   countUniqueSpeciesInRange,
+  getCommentsForDate,
 } from './db';
 import { buildWeekGrid, todayEastern } from './calendarUtil';
 import { runPoll } from './poller';
@@ -117,10 +118,13 @@ app.get('/week/:anchor', async (c) => {
 app.get('/day/:obsDate', async (c) => {
   const obsDate = c.req.param('obsDate');
   if (!isValidDate(obsDate)) return c.text('Invalid date', 400);
-  const sightings = await getSightingsForDate(c.env.DB, obsDate);
+  const [sightings, comments] = await Promise.all([
+    getSightingsForDate(c.env.DB, obsDate),
+    getCommentsForDate(c.env.DB, obsDate),
+  ]);
   return c.html(
     renderToString(
-      <DayDetail sightings={sightings} displayDate={formatDisplayDate(obsDate)} />
+      <DayDetail sightings={sightings} displayDate={formatDisplayDate(obsDate)} comments={comments} />
     )
   );
 });
@@ -131,7 +135,7 @@ app.post('/admin/poll', async (c) => {
     return c.text('Unauthorized', 401);
   }
   try {
-    await runPoll(c.env);
+    await runPoll(c.env, { verbose: true });
   } catch (err) {
     console.error('Unexpected error in /admin/poll', err);
     return c.text('Poll failed', 500);

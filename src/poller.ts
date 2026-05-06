@@ -5,6 +5,8 @@ import {
   getSpeciesMissingThumbnails,
   getStaleThumbnails,
   upsertSpeciesThumbnail,
+  getKnownChecklistIds,
+  upsertChecklistComment,
 } from './db';
 
 const LAT = 36.000538;
@@ -14,6 +16,7 @@ const EBIRD_URL = 'https://api.ebird.org/v2/data/obs/geo/recent';
 const EBIRD_NOTABLE_URL = 'https://api.ebird.org/v2/data/obs/geo/recent/notable';
 const MACAULAY_SEARCH_URL = 'https://search.macaulaylibrary.org/api/v1/search';
 const MACAULAY_ASSET_BASE = 'https://cdn.download.ams.birds.cornell.edu/api/v1/asset';
+const EBIRD_CHECKLIST_URL = 'https://api.ebird.org/v2/product/checklist/view';
 
 async function fetchThumbnail(speciesCode: string): Promise<string | null> {
   try {
@@ -35,28 +38,25 @@ async function fetchThumbnail(speciesCode: string): Promise<string | null> {
 
 async function fetchThumbnails(
   db: D1Database,
-  speciesCodes: Set<string>
+  speciesCodes: Set<string>,
+  log: (...a: unknown[]) => void
 ): Promise<void> {
-  // New species: fetch thumbnails for codes not yet in the species table.
   try {
     const missing = Array.from(await getSpeciesMissingThumbnails(db, Array.from(speciesCodes)));
     if (missing.length > 0) {
-      console.log(`Fetching thumbnails for ${missing.length} new species`);
+      log(`Fetching thumbnails for ${missing.length} new species`);
       const urls = await Promise.all(missing.map(fetchThumbnail));
       await Promise.all(missing.map((code, i) => upsertSpeciesThumbnail(db, code, urls[i])));
     }
   } catch (err) {
-    // Thumbnail failures must not overwrite a successful poll_status.
-    console.warn('Thumbnail fetch failed — sightings unaffected', err);
+    console.error('Thumbnail fetch failed — sightings unaffected', err);
   }
 
-  // Stale species: refresh thumbnails older than 30 days (capped at 20 per poll).
   try {
     const stale = await getStaleThumbnails(db);
     if (stale.length > 0) {
-      console.log(`Refreshing ${stale.length} stale thumbnails`);
+      log(`Refreshing ${stale.length} stale thumbnails`);
       const urls = await Promise.all(stale.map(fetchThumbnail));
-      // Preserve original indices when filtering so codes stay aligned with urls.
       await Promise.all(
         stale.map((code, i) =>
           urls[i] !== null ? upsertSpeciesThumbnail(db, code, urls[i]) : Promise.resolve()
@@ -64,11 +64,68 @@ async function fetchThumbnails(
       );
     }
   } catch (err) {
-    console.warn('Stale thumbnail refresh failed', err);
+    console.error('Stale thumbnail refresh failed', err);
   }
 }
 
-export async function runPoll(env: Env): Promise<void> {
+async function fetchChecklistComments(
+  db: D1Database,
+  records: { sub_id: string | null; obs_date: string }[],
+  apiKey: string,
+  log: (...a: unknown[]) => void
+): Promise<void> {
+  const subIdToDate = new Map<string, string>();
+  for (const r of records) {
+    if (r.sub_id && !subIdToDate.has(r.sub_id)) subIdToDate.set(r.sub_id, r.obs_date);
+  }
+  if (subIdToDate.size === 0) return;
+
+  try {
+    const allSubIds = Array.from(subIdToDate.keys());
+    const knownIds = await getKnownChecklistIds(db, allSubIds);
+    const newSubIds = allSubIds.filter((id) => !knownIds.has(id));
+    if (newSubIds.length === 0) return;
+
+    const now = new Date().toISOString();
+    let saved = 0;
+
+    await Promise.all(newSubIds.map(async (subId) => {
+      try {
+        const resp = await fetch(`${EBIRD_CHECKLIST_URL}/${subId}`, {
+          headers: { 'x-ebirdapitoken': apiKey },
+        });
+        if (resp.status === 429) {
+          console.error(`eBird checklist API rate limited for ${subId}`);
+          return;
+        }
+        if (!resp.ok) {
+          console.error(`eBird checklist ${subId}: HTTP ${resp.status}`);
+          return;
+        }
+        const data = await resp.json() as { comments?: string; userDisplayName?: string };
+        const text = data.comments?.trim();
+        log(`Checklist ${subId}: comment=${JSON.stringify(text ?? null)}, observer=${data.userDisplayName ?? null}`);
+        if (!text) return;
+        await upsertChecklistComment(db, {
+          sub_id: subId,
+          obs_date: subIdToDate.get(subId)!,
+          observer_name: data.userDisplayName ?? null,
+          comment_text: text,
+          fetched_at: now,
+        });
+        saved++;
+      } catch {
+        console.error(`Failed to fetch checklist comment for ${subId}`);
+      }
+    }));
+    console.log(`Checklist comments: ${saved} saved of ${newSubIds.length} fetched`);
+  } catch (err) {
+    console.error('Checklist comment fetch failed — sightings unaffected', err);
+  }
+}
+
+export async function runPoll(env: Env, opts: { verbose?: boolean } = {}): Promise<void> {
+  const log = opts.verbose ? console.log.bind(console) : () => {};
   console.log('Polling eBird API...');
   const now = new Date().toISOString();
   const ebirdHeaders = { 'x-ebirdapitoken': env.EBIRD_API_KEY };
@@ -98,10 +155,10 @@ export async function runPoll(env: Env): Promise<void> {
       fetch(notableUrl, { headers: ebirdHeaders }),
     ]);
 
-    console.log(`eBird response: HTTP ${obsResp.status}`);
+    log(`eBird response: HTTP ${obsResp.status}`);
 
     if (obsResp.status === 429) {
-      console.warn('eBird API rate limited (429) — will retry next interval');
+      console.error('eBird API rate limited (429) — will retry next interval');
       await updatePollStatus(env.DB, now, false, 0);
       return;
     }
@@ -110,7 +167,7 @@ export async function runPoll(env: Env): Promise<void> {
     const obsJson = await obsResp.json();
     if (!Array.isArray(obsJson)) throw new Error('eBird response was not an array');
     observations = obsJson;
-    console.log(`eBird returned ${observations.length} observations`);
+    log(`eBird returned ${observations.length} observations`);
 
     if (notableResp.ok) {
       notableKeys = new Set<string>();
@@ -118,11 +175,11 @@ export async function runPoll(env: Env): Promise<void> {
       for (const obs of notableObs) {
         notableKeys.add(`${obs.obsDt.slice(0, 10)}:${obs.speciesCode}`);
       }
-      if (notableKeys.size > 0) console.log(`eBird notable: ${notableKeys.size} rare species`);
+      if (notableKeys.size > 0) log(`eBird notable: ${notableKeys.size} rare species`);
     } else {
       // Don't fall back to empty set — that would mark all new records as non-notable.
       // Leave notableKeys null so the upsert preserves existing notable values in DB.
-      console.warn('Notable endpoint failed — skipping notable update this cycle');
+      console.error('Notable endpoint failed — skipping notable update this cycle');
       notableKeys = null;
     }
   } catch (err) {
@@ -159,5 +216,8 @@ export async function runPoll(env: Env): Promise<void> {
 
   // --- Thumbnails (failures cannot affect poll_status written above) ---
   const seenCodes = new Set(records.map((r) => r.species_code));
-  await fetchThumbnails(env.DB, seenCodes);
+  await fetchThumbnails(env.DB, seenCodes, log);
+
+  // --- Checklist comments (failures cannot affect poll_status written above) ---
+  await fetchChecklistComments(env.DB, records, env.EBIRD_API_KEY, log);
 }

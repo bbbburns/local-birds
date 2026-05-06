@@ -75,6 +75,14 @@ CREATE TABLE IF NOT EXISTS poll_status (
     success INTEGER NOT NULL,
     count INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS checklist_comments (
+    sub_id TEXT PRIMARY KEY,
+    obs_date TEXT NOT NULL,
+    observer_name TEXT,
+    comment_text TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
 ```
 
 Apply with: `wrangler d1 migrations apply birds --local` (dev) or
@@ -288,7 +296,9 @@ bug fix that was not backported to the original.
 | `src/db.ts` `upsertSightings` | No longer takes a `pollDate` param. Creates `sighting_days` rows per unique `obs_date` in the records (not per poll date). The original only writes one row for today, so the week strip highlights the poll day rather than the days birds were actually seen — a bug. See `../vega-vireos/CLAUDE.md` for the Python fix. |
 | `src/db.ts` `upsertSightings` | Chunks D1 batch into ≤100 statements to stay within D1's hard limit. Accepts `preserveExisting` option that switches to `INSERT OR IGNORE` (used when the notable endpoint fails, to avoid overwriting existing `notable` values with 0). |
 | `src/db.ts` `getStaleThumbnails` | Adds `LIMIT 20` to cap concurrent Macaulay API calls per poll cycle. |
-| `src/routes.tsx` | File is `.tsx` (not `.ts`) since it contains JSX. Validates `anchor` and `obsDate` URL params with `isValidDate()` — returns 400 for malformed input. |
+| `src/routes.tsx` | File is `.tsx` (not `.ts`) since it contains JSX. Validates `anchor` and `obsDate` URL params with `isValidDate()` — returns 400 for malformed input. Manual `/admin/poll` passes `{ verbose: true }` to `runPoll`; cron handler passes nothing (quiet mode). |
+| `src/poller.ts` | `runPoll` accepts `opts.verbose` boolean. Verbose gates per-checklist detail logs and thumbnail counts. Always-on logs: poll start, sighting count, comment save count. Hard failures always use `console.error`. |
+| `src/poller.ts` | After each poll, fetches top-level checklist comments from `GET /v2/product/checklist/view/{subId}` for any new `sub_id`s. Stores in `checklist_comments` table (keyed by `sub_id`, not by sighting upsert key) so multiple observers' notes for the same day are all preserved. |
 | `src/calendarUtil.ts` `buildWeekGrid` | Accepts `anchor: string` (ISO date) instead of `anchorDate: Date` to avoid timezone-on-construction issues. |
 | `src/poller.ts` | Both eBird fetches (recent + notable) run in parallel via `Promise.all`. Original makes them sequentially. Notable endpoint failure sets `notableKeys=null` (skips overwriting notable) rather than falling back to an empty set. |
 | Asset paths | `/htmx.min.js`, `/cardinal.svg`, `/favicon.svg` — no `/static/` prefix (Workers Assets serves `public/` at root). |

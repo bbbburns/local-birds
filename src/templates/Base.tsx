@@ -178,6 +178,13 @@ const CSS = `
   a.checklist-link:hover { opacity: 1; text-decoration: underline; }
   #day-detail .meta { margin-top: 0.75rem; font-size: 0.875rem; color: #666; }
   #day-detail .legend { margin-top: 0.25rem; font-style: italic; }
+  .observer-notes { margin-top: 1.5rem; border-top: 1px solid #e0e0e0; padding-top: 1rem; }
+  .observer-notes h3 { font-size: 1rem; color: #2d5a27; margin-bottom: 0.75rem; }
+  .comment-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+  .comment-row { background: #f9f6f0; border-radius: 6px; padding: 0.75rem; }
+  .comment-text { margin: 0 0 0.4rem; font-size: 0.9rem; color: #333; font-style: italic; }
+  .comment-meta { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; }
+  .comment-author { color: #555; font-weight: 600; }
 
   footer {
     text-align: center;

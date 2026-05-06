@@ -1,4 +1,4 @@
-import type { Sighting, PollStatus } from './types';
+import type { Sighting, PollStatus, ChecklistComment } from './types';
 
 export async function getSightingsForDate(db: D1Database, obsDate: string): Promise<Sighting[]> {
   const { results } = await db.prepare(
@@ -114,6 +114,38 @@ export async function getStaleThumbnails(db: D1Database, maxAgeDays = 30, limit 
     `SELECT species_code FROM species WHERE fetched_at < ? LIMIT ?`
   ).bind(cutoff, limit).all<{ species_code: string }>();
   return results.map((r) => r.species_code);
+}
+
+export async function getKnownChecklistIds(
+  db: D1Database,
+  subIds: string[]
+): Promise<Set<string>> {
+  if (subIds.length === 0) return new Set();
+  const placeholders = subIds.map(() => '?').join(', ');
+  const { results } = await db.prepare(
+    `SELECT sub_id FROM checklist_comments WHERE sub_id IN (${placeholders})`
+  ).bind(...subIds).all<{ sub_id: string }>();
+  return new Set(results.map((r) => r.sub_id));
+}
+
+export async function upsertChecklistComment(
+  db: D1Database,
+  comment: ChecklistComment
+): Promise<void> {
+  await db.prepare(
+    `INSERT OR REPLACE INTO checklist_comments (sub_id, obs_date, observer_name, comment_text, fetched_at)
+     VALUES (?, ?, ?, ?, ?)`
+  ).bind(comment.sub_id, comment.obs_date, comment.observer_name, comment.comment_text, comment.fetched_at).run();
+}
+
+export async function getCommentsForDate(
+  db: D1Database,
+  obsDate: string
+): Promise<ChecklistComment[]> {
+  const { results } = await db.prepare(
+    `SELECT * FROM checklist_comments WHERE obs_date = ? ORDER BY fetched_at`
+  ).bind(obsDate).all<ChecklistComment>();
+  return results;
 }
 
 export async function upsertSpeciesThumbnail(

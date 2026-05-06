@@ -62,10 +62,21 @@ export function HowItWorks() {
           and are cached locally. Cached photos are refreshed every 30 days.
         </p>
 
+        <h2 style="margin-top:1.5rem;">Observer notes</h2>
+        <p style="margin-bottom:1rem;">
+          When birders submit a checklist to eBird they can include a free-text note
+          describing their outing — conditions, highlights, anything they want to share.
+          Each poll fetches those notes for any new checklists and displays them at the
+          bottom of the day detail as <strong>Observer Notes</strong>. Multiple observers
+          on the same day each get their own entry. Notes link back to the original
+          checklist on eBird.
+        </p>
+
         <h2 style="margin-top:1.5rem;">Data storage</h2>
         <p>
           Sightings are stored in a local database. Duplicate submissions from multiple
-          observers are deduplicated by species per day.
+          observers are deduplicated by species per day. Observer notes are stored
+          separately, keyed by checklist, so every observer's comment is preserved.
         </p>
       </div>
       <p style="margin-top:1.5rem;">

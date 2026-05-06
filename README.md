@@ -11,8 +11,8 @@ A bird sighting tracker for Durham Central Park, NC — powered by the
 
 Polls eBird every hour for recent bird observations within 2 km of Durham
 Central Park. Displays a rolling week view with per-day sighting lists,
-species thumbnails from the Macaulay Library, and highlights for rare/notable
-species.
+species thumbnails from the Macaulay Library, highlights for rare/notable
+species, and observer notes pulled from eBird checklist comments.
 
 No server to manage. No Docker. No tunnel. Everything runs on Cloudflare's
 free tier (100k req/day, 5 GB D1, Cron Triggers included).

@@ -1,11 +1,13 @@
-import type { Sighting } from '../types';
+import type { Sighting, ChecklistComment } from '../types';
 
 export function DayDetail({
   sightings,
   displayDate,
+  comments = [],
 }: {
   sightings: Sighting[];
   displayDate: string;
+  comments?: ChecklistComment[];
 }) {
   return (
     <>
@@ -70,6 +72,31 @@ export function DayDetail({
         </>
       ) : (
         <p class="no-sightings">No birds were spotted on this date.</p>
+      )}
+      {comments.length > 0 && (
+        <div class="observer-notes">
+          <h3>Observer Notes</h3>
+          <ul class="comment-list">
+            {comments.map((c) => (
+              <li class="comment-row">
+                <p class="comment-text">"{c.comment_text}"</p>
+                <div class="comment-meta">
+                  {c.observer_name && <span class="comment-author">{c.observer_name}</span>}
+                  <a
+                    class="checklist-link"
+                    href={`https://ebird.org/checklist/${c.sub_id}`}
+                    target="_blank"
+                    rel="noopener"
+                    title="View checklist on eBird"
+                  >
+                    <span class="link-full">✓ eBird checklist ↗</span>
+                    <span class="link-icon">↗</span>
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );

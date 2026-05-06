@@ -26,6 +26,14 @@ export interface PollStatus {
   count: number;
 }
 
+export interface ChecklistComment {
+  sub_id: string;
+  obs_date: string;
+  observer_name: string | null;
+  comment_text: string;
+  fetched_at: string;
+}
+
 export interface WeekCell {
   date: string; // ISO date string YYYY-MM-DD
   hasData: boolean;
