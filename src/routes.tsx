@@ -44,6 +44,13 @@ function formatDisplayDate(isoDate: string): string {
   return DISPLAY_DATE_FMT.format(new Date(isoDate + 'T00:00:00Z'));
 }
 
+// Returns the ISO date string 6 days before the given anchor (the week window start).
+function weekWindowStart(anchor: string): string {
+  const d = new Date(anchor + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 6);
+  return d.toISOString().slice(0, 10);
+}
+
 // Returns true for well-formed YYYY-MM-DD calendar dates.
 function isValidDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
@@ -60,9 +67,7 @@ function clampToToday(isoDate: string, today: string): string {
 
 app.get('/', async (c) => {
   const today = todayEastern();
-  const sixDaysAgo = new Date(today + 'T12:00:00Z');
-  sixDaysAgo.setUTCDate(sixDaysAgo.getUTCDate() - 6);
-  const windowStart = sixDaysAgo.toISOString().slice(0, 10);
+  const windowStart = weekWindowStart(today);
 
   const [sightedDates, todaySightings, latest, pollStatus, speciesCount] = await Promise.all([
     getSightedDatesInRange(c.env.DB, windowStart, today),
@@ -96,11 +101,7 @@ app.get('/week/:anchor', async (c) => {
   if (!isValidDate(rawAnchor)) return c.text('Invalid date', 400);
   const anchor = clampToToday(rawAnchor, today);
 
-  const anchorDate = new Date(anchor + 'T12:00:00Z');
-  const windowStart = new Date(anchorDate);
-  windowStart.setUTCDate(anchorDate.getUTCDate() - 6);
-
-  const windowStartStr = windowStart.toISOString().slice(0, 10);
+  const windowStartStr = weekWindowStart(anchor);
   const [sightedDates, speciesCount] = await Promise.all([
     getSightedDatesInRange(c.env.DB, windowStartStr, anchor),
     countUniqueSpeciesInRange(c.env.DB, windowStartStr, anchor),

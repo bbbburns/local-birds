@@ -16,7 +16,7 @@ export function DayDetail({
         <>
           <ul class="sighting-list">
             {sightings.map((s) => (
-              <li class={`sighting-row${s.notable ? ' sighting-notable' : ''}`}>
+              <li key={s.species_code} class={`sighting-row${s.notable ? ' sighting-notable' : ''}`}>
                 <div class="sighting-thumb">
                   {s.thumbnail_url ? (
                     <a
@@ -78,7 +78,7 @@ export function DayDetail({
           <h3>Observer Notes</h3>
           <ul class="comment-list">
             {comments.map((c) => (
-              <li class="comment-row">
+              <li key={c.sub_id} class="comment-row">
                 <p class="comment-text">"{c.comment_text}"</p>
                 <div class="comment-meta">
                   {c.observer_name && <span class="comment-author">{c.observer_name}</span>}

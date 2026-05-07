@@ -108,7 +108,7 @@ async function fetchChecklistComments(
         if (!text) return;
         await upsertChecklistComment(db, {
           sub_id: subId,
-          obs_date: subIdToDate.get(subId)!,
+          obs_date: subIdToDate.get(subId) ?? new Date().toISOString().slice(0, 10),
           observer_name: data.userDisplayName ?? null,
           comment_text: text,
           fetched_at: now,
