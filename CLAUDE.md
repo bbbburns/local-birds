@@ -19,7 +19,7 @@ Cloudflare Cron Trigger (hourly)
 HTTP requests
   └─ Worker (Hono router): reads D1 → renders HTML responses
 
-Static assets (htmx.min.js, favicon.svg, cardinal.svg)
+Static assets (htmx.min.js, favicon.svg, cardinal.svg, cardinal-card.png)
   └─ Served directly by Workers Assets from ./public/
 ```
 
@@ -39,8 +39,15 @@ free tier (100k req/day, 5GB D1, Cron Triggers included).
 
 ## D1 Schema
 
-Create as `migrations/0001_initial.sql`. Syntax is identical to the original
-SQLite — no translation needed.
+The schema is split across three migrations (logical full schema shown below).
+Syntax is identical to the original SQLite — no translation needed.
+
+- `0001_initial.sql` — the four base tables (`sighting_days`, `sightings`,
+  `species`, `poll_status`)
+- `0002_indexes.sql` — perf indexes: `idx_sightings_obs_date` on
+  `sightings(obs_date)`, `idx_species_fetched_at` on `species(fetched_at)`
+- `0003_checklist_comments.sql` — the `checklist_comments` table and its
+  `idx_checklist_comments_obs_date` index
 
 ```sql
 CREATE TABLE IF NOT EXISTS sighting_days (
@@ -190,6 +197,8 @@ Returns the same shape as the Python version: `cells[]`, `prevAnchor`,
 
 ## wrangler.toml
 
+Production lives at **https://birds.burns.sh** (custom domain bound to the Worker).
+
 ```toml
 name = "vega-vireos"
 main = "src/index.ts"
@@ -201,10 +210,19 @@ crons = ["0 * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "birds"
-database_id = "<run: wrangler d1 create birds>"
+database_id = "cca2c12e-adde-4ae8-917a-b1466551c3e0"
 
 [assets]
 directory = "./public"
+
+[[routes]]
+pattern = "birds.burns.sh"
+custom_domain = true
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
 ```
 
 ## Environment / Secrets
@@ -243,6 +261,8 @@ git push                                        # triggers Cloudflare auto-build
 **Note:** `wrangler deploy` is no longer used — the repo is connected to Cloudflare's
 CI/CD pipeline which deploys automatically on push to `main`. Migrations must still
 be applied manually with `--remote` since the build pipeline does not run them.
+The `npm run deploy` script (`wrangler deploy`) still exists in `package.json` but is
+legacy — it is **not** the deploy path; ignore it in favor of push-to-`main`.
 
 ## Data Migration (from existing birds.db)
 
@@ -318,9 +338,10 @@ D1 schema via `beforeAll` before each test file. Three test files:
 - `test/db.test.ts` — D1 query wrappers (17 tests)
 - `test/routes.test.ts` — HTTP integration via `SELF` (15 tests)
 
-**vitest config note**: uses `cloudflareTest` as a Vite plugin (not
-`cloudflarePool` directly). `cloudflareTest` registers the `resolveId`/`load`
-hooks that make `cloudflare:test` available as a virtual module.
+**vitest config note**: config lives in `vitest.config.mts` (`.mts`, not `.ts`).
+It uses `cloudflareTest` as a Vite plugin (not `cloudflarePool` directly).
+`cloudflareTest` registers the `resolveId`/`load` hooks that make `cloudflare:test`
+available as a virtual module.
 
 ## Reference Files (original Python app)
 
@@ -335,3 +356,6 @@ All source files live at `../vega-vireos/app/`:
 | `calendar_util.py` | Week grid builder → port to `src/calendarUtil.ts` |
 | `templates/` | Jinja2 templates → port to Hono JSX components in `src/templates/*.tsx` |
 | `static/` | Copy to `public/` as-is |
+
+Worker-only source with no Python counterpart: `src/types.ts` — shared TypeScript
+interfaces (`Env`, `Sighting`, `PollStatus`, `ChecklistComment`, `WeekCell`, `WeekGrid`).
