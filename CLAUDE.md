@@ -105,6 +105,7 @@ Port from `../vega-vireos/app/routes.py`. Use Hono handlers.
 | GET | `/week/:anchor` | `weekView` | Returns week_strip HTML fragment (HTMX target) |
 | GET | `/day/:obsDate` | `dayDetail` | Returns day_detail HTML fragment (HTMX target) |
 | POST | `/admin/poll` | `adminPoll` | Triggers immediate poll; auth via `POLL_SECRET` header (see below) |
+| GET | `/health` | — | JSON liveness check; runs `SELECT 1` against D1, returns `{status: "ok"}`/200 or `{status: "error"}`/503. Polled by an external monitor (Home Assistant `rest` sensor). No auth. |
 | GET | `/how-it-works` | `howItWorks` | Static info page |
 | GET | `/how-to-contribute` | `howToContribute` | Static info page |
 
