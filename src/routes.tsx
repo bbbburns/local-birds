@@ -144,6 +144,16 @@ app.post('/admin/poll', async (c) => {
   return c.redirect('/');
 });
 
+app.get('/health', async (c) => {
+  try {
+    await c.env.DB.prepare('SELECT 1').first();
+    return c.json({ status: 'ok' }, 200);
+  } catch (err) {
+    console.error('Health check DB failure', err);
+    return c.json({ status: 'error', error: 'db_unavailable' }, 503);
+  }
+});
+
 app.get('/how-it-works', (c) => c.html(page(<HowItWorks />)));
 app.get('/how-to-contribute', (c) => c.html(page(<HowToContribute />)));
 

@@ -56,6 +56,15 @@ describe('GET /', () => {
   });
 });
 
+describe('GET /health', () => {
+  it('returns 200 with ok status', async () => {
+    const res = await SELF.fetch('http://localhost/health');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ status: 'ok' });
+  });
+});
+
 describe('GET /week/:anchor', () => {
   it('returns 200 with a week strip fragment (no DOCTYPE)', async () => {
     const res = await SELF.fetch('http://localhost/week/2026-04-07');
