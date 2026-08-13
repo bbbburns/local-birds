@@ -133,8 +133,9 @@ Port from `../vega-vireos/app/poller.py`.
    - same lat/lng/dist/back params (used to set `notable` flag)
 
 **Macaulay Library thumbnails** — for each new species seen:
-1. `GET https://search.macaulaylibrary.org/api/v1/search?taxonCode=<code>&count=1&mediaType=Photo&sort=rating_rank_desc`
-2. Extract `results.content[0].assetId`, build URL:
+1. `GET https://search.macaulaylibrary.org/api/v2/search?taxonCode=<code>&count=1&mediaType=photo&sort=rating_rank_desc`
+   (v1 was retired; v2 returns a bare array, not `{results: {content: [...]}}`)
+2. Extract `[0].assetId`, build URL:
    `https://cdn.download.ams.birds.cornell.edu/api/v1/asset/<assetId>/320`
 
 In the original, `ThreadPoolExecutor` fetches thumbnails concurrently. In
