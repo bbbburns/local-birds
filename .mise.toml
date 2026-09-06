@@ -1,0 +1,8 @@
+[env]
+# If a system-wide libvips is already installed (common on Linux dev boxes
+# that also have GIMP, ImageMagick, etc.), sharp's install script tries to
+# build from source against it via node-gyp instead of using its prebuilt
+# binary — and fails immediately, since node-addon-api isn't a project
+# dependency. Force the prebuilt path instead. See:
+# https://sharp.pixelplumbing.com/install#globally-installed-libvips
+SHARP_IGNORE_GLOBAL_LIBVIPS = "1"

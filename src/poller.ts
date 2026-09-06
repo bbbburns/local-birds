@@ -36,7 +36,7 @@ async function fetchThumbnail(speciesCode: string): Promise<string | null> {
   return null;
 }
 
-async function fetchThumbnails(
+export async function fetchThumbnails(
   db: D1Database,
   speciesCodes: Set<string>,
   log: (...a: unknown[]) => void
@@ -46,7 +46,15 @@ async function fetchThumbnails(
     if (missing.length > 0) {
       log(`Fetching thumbnails for ${missing.length} new species`);
       const urls = await Promise.all(missing.map(fetchThumbnail));
-      await Promise.all(missing.map((code, i) => upsertSpeciesThumbnail(db, code, urls[i])));
+      // Only record a row on success. A failed fetch must not count as
+      // "fetched" — leaving no row keeps the species eligible for retry on
+      // the very next poll instead of being locked out for the 30-day
+      // stale-refresh window.
+      await Promise.all(
+        missing.map((code, i) =>
+          urls[i] !== null ? upsertSpeciesThumbnail(db, code, urls[i]) : Promise.resolve()
+        )
+      );
     }
   } catch (err) {
     console.error('Thumbnail fetch failed — sightings unaffected', err);

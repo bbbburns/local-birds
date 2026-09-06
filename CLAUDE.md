@@ -142,7 +142,9 @@ In the original, `ThreadPoolExecutor` fetches thumbnails concurrently. In
 Workers use `Promise.all()` with `fetch()` — no threads needed.
 
 Thumbnails older than 30 days are refreshed on each poll (check `fetched_at`
-in the `species` table).
+in the `species` table). A failed fetch does not count as "fetched" — no row
+is written, so the species stays retry-eligible on the very next poll rather
+than being locked out for the 30-day window.
 
 **Rate limiting**: If eBird returns HTTP 429, log a warning and record a failed
 poll status without throwing. Retry naturally on next cron tick.
@@ -248,6 +250,16 @@ wrangler d1 create birds                         # one-time, copy ID into wrangl
 wrangler d1 migrations apply birds --local       # create local DB schema
 wrangler dev                                     # local dev server at localhost:8787
 ```
+
+**If `npm install` fails building `sharp`** (a hard dependency of `miniflare`,
+pulled in via `wrangler`/`@cloudflare/vitest-pool-workers`) with `Attempting
+to build from source via node-gyp` / `Please add node-addon-api to your
+dependencies`: your system already has a global `libvips` installed (common
+if GIMP, ImageMagick, etc. are present), which makes sharp try to build
+against it instead of using its prebuilt binary. Run
+`SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm install` instead, or set that env var
+permanently in your shell/tool config — this repo's `.mise.toml` already
+does this for mise users.
 
 Run tests:
 ```bash
