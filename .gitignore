@@ -2,3 +2,5 @@ node_modules/
 .wrangler/
 .dev.vars
 dist/
+bird-sync/.env.local
+bird-sync/.env.prod

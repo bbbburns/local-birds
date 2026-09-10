@@ -2,8 +2,16 @@ services:
   bird-sync:
     build: .
     restart: unless-stopped
+    # Bridge networking (the default) — sufficient for prod, where
+    # THUMBNAIL_WORKER_URL points at birds.burns.sh over the public
+    # internet. Local testing against a same-host wrangler dev needs host
+    # networking instead — see docker-compose.override.yml, which `just
+    # build/start/stop/poll/logs` pick up automatically. Use
+    # `docker compose -f docker-compose.yml up -d` (or `just start-prod`)
+    # to run without it.
     environment:
-      THUMBNAIL_SPECIES_CODES: "${THUMBNAIL_SPECIES_CODES}"
-      THUMBNAIL_PUSH_URL: "${THUMBNAIL_PUSH_URL}"
-      THUMBNAIL_PUSH_SECRET: "${THUMBNAIL_PUSH_SECRET}"
+      THUMBNAIL_WORKER_URL: "${THUMBNAIL_WORKER_URL:-}"
+      THUMBNAIL_PUSH_SECRET: "${THUMBNAIL_PUSH_SECRET:-}"
       THUMBNAIL_POLL_INTERVAL_MINUTES: "${THUMBNAIL_POLL_INTERVAL_MINUTES:-60}"
+      CF_ACCESS_CLIENT_ID: "${CF_ACCESS_CLIENT_ID:-}"
+      CF_ACCESS_CLIENT_SECRET: "${CF_ACCESS_CLIENT_SECRET:-}"

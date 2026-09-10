@@ -2,6 +2,7 @@ export interface Env {
   DB: D1Database;
   EBIRD_API_KEY: string;
   POLL_SECRET: string;
+  THUMBNAIL_PUSH_SECRET: string;
 }
 
 export interface Sighting {
