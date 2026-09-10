@@ -22,6 +22,49 @@ so a small Docker service (`bird-sync/`) running on a home server fetches
 those and pushes them back — see [bird-sync](#bird-sync-thumbnail-fetcher)
 below. Everything else stays fully serverless.
 
+## Architecture
+
+```mermaid
+flowchart TB
+    ebird[("eBird API")]
+    cron["Cron Trigger<br/>(hourly)"]
+    browser["Browser<br/>birds.burns.sh"]
+
+    subgraph cf["Cloudflare"]
+        worker["Worker<br/>(Hono)"]
+        d1[("D1<br/>sightings + species")]
+        access["Access<br/>Service Token policy"]
+        admin["/admin/thumbnails*<br/>routes"]
+        worker <--> d1
+        access -.gates.-> admin
+        admin <--> d1
+    end
+
+    subgraph home["Home server"]
+        birdsync["bird-sync<br/>(Docker)"]
+    end
+
+    macaulay[("Macaulay Library API<br/>(behind Anubis PoW)")]
+
+    cron --> worker
+    worker -- poll sightings --> ebird
+    ebird -- observations --> worker
+    worker -- render --> browser
+
+    birdsync -- "solve PoW,<br/>fetch thumbnail URL" --> macaulay
+    macaulay -- thumbnail URL --> birdsync
+    birdsync -- "Bearer secret +<br/>Access token" --> access
+    admin -- "GET pending /<br/>POST results" --> birdsync
+```
+
+Sightings are fully serverless end to end: an hourly Cron Trigger polls
+eBird, writes to D1, and the Worker renders the site straight from there.
+Thumbnails are the one piece that can't run on Workers — Macaulay's search
+API is gated by a client-side proof-of-work bot-check that blocks
+Cloudflare's `fetch()`, so `bird-sync` solves it from a home server instead,
+authenticating with a dedicated secret plus a Cloudflare Access Service
+Token before it can reach `/admin/thumbnails*`.
+
 ## Stack
 
 | Layer | Choice |
