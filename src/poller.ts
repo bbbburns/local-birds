@@ -14,7 +14,7 @@ const LNG = -78.900216;
 const DIST_KM = 2;
 const EBIRD_URL = 'https://api.ebird.org/v2/data/obs/geo/recent';
 const EBIRD_NOTABLE_URL = 'https://api.ebird.org/v2/data/obs/geo/recent/notable';
-const MACAULAY_SEARCH_URL = 'https://search.macaulaylibrary.org/api/v1/search';
+const MACAULAY_SEARCH_URL = 'https://search.macaulaylibrary.org/api/v2/search';
 const MACAULAY_ASSET_BASE = 'https://cdn.download.ams.birds.cornell.edu/api/v1/asset';
 const EBIRD_CHECKLIST_URL = 'https://api.ebird.org/v2/product/checklist/view';
 
@@ -23,20 +23,20 @@ async function fetchThumbnail(speciesCode: string): Promise<string | null> {
     const url = new URL(MACAULAY_SEARCH_URL);
     url.searchParams.set('taxonCode', speciesCode);
     url.searchParams.set('count', '1');
-    url.searchParams.set('mediaType', 'Photo');
+    url.searchParams.set('mediaType', 'photo');
     url.searchParams.set('sort', 'rating_rank_desc');
     const resp = await fetch(url);
     if (!resp.ok) return null;
-    const data = await resp.json() as { results?: { content?: { assetId?: string }[] } };
-    const assetId = data.results?.content?.[0]?.assetId;
+    const data = await resp.json() as { assetId?: string }[];
+    const assetId = data[0]?.assetId;
     if (assetId) return `${MACAULAY_ASSET_BASE}/${assetId}/320`;
-  } catch {
-    console.warn(`Could not fetch thumbnail for ${speciesCode}`);
+  } catch (err) {
+    console.warn(`Could not fetch thumbnail for ${speciesCode}`, err);
   }
   return null;
 }
 
-async function fetchThumbnails(
+export async function fetchThumbnails(
   db: D1Database,
   speciesCodes: Set<string>,
   log: (...a: unknown[]) => void
@@ -46,7 +46,15 @@ async function fetchThumbnails(
     if (missing.length > 0) {
       log(`Fetching thumbnails for ${missing.length} new species`);
       const urls = await Promise.all(missing.map(fetchThumbnail));
-      await Promise.all(missing.map((code, i) => upsertSpeciesThumbnail(db, code, urls[i])));
+      // Only record a row on success. A failed fetch must not count as
+      // "fetched" — leaving no row keeps the species eligible for retry on
+      // the very next poll instead of being locked out for the 30-day
+      // stale-refresh window.
+      await Promise.all(
+        missing.map((code, i) =>
+          urls[i] !== null ? upsertSpeciesThumbnail(db, code, urls[i]) : Promise.resolve()
+        )
+      );
     }
   } catch (err) {
     console.error('Thumbnail fetch failed — sightings unaffected', err);
