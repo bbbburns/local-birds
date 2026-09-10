@@ -14,8 +14,13 @@ Central Park. Displays a rolling week view with per-day sighting lists,
 species thumbnails from the Macaulay Library, highlights for rare/notable
 species, and observer notes pulled from eBird checklist comments.
 
-No server to manage. No Docker. No tunnel. Everything runs on Cloudflare's
-free tier (100k req/day, 5 GB D1, Cron Triggers included).
+No server to manage for sightings, polling, or the site itself — everything
+runs on Cloudflare's free tier (100k req/day, 5 GB D1, Cron Triggers
+included). Species thumbnails are the one exception: Macaulay Library's
+thumbnail search API sits behind a bot-check that blocks Cloudflare Workers,
+so a small Docker service (`bird-sync/`) running on a home server fetches
+those and pushes them back — see [bird-sync](#bird-sync-thumbnail-fetcher)
+below. Everything else stays fully serverless.
 
 ## Stack
 
@@ -54,6 +59,7 @@ npx wrangler d1 migrations apply birds --local
 cat > .dev.vars <<EOF
 EBIRD_API_KEY=your_key_here
 POLL_SECRET=anything
+THUMBNAIL_PUSH_SECRET=anything
 EOF
 
 # Start the dev server
@@ -73,12 +79,13 @@ curl -X POST http://localhost:8787/admin/poll \
 npm test
 ```
 
-Three test suites run inside the Workers runtime via
+Test suites run inside the Workers runtime via
 `@cloudflare/vitest-pool-workers`:
 
 - `test/calendarUtil.test.ts` — pure date arithmetic
 - `test/db.test.ts` — D1 query wrappers
 - `test/routes.test.ts` — HTTP integration via `SELF`
+- `test/poller.test.ts` — eBird/Macaulay poller logic
 
 ## Deployment
 
@@ -87,6 +94,7 @@ Three test suites run inside the Workers runtime via
 # Set production secrets (one-time)
 npx wrangler secret put EBIRD_API_KEY
 npx wrangler secret put POLL_SECRET
+npx wrangler secret put THUMBNAIL_PUSH_SECRET   # generate with: openssl rand -hex 32
 
 # Apply schema to production D1 (one-time)
 npx wrangler d1 migrations apply birds --remote
@@ -105,6 +113,34 @@ automatically after deploy. Trigger a manual poll in production:
 curl -X POST https://your-worker.workers.dev/admin/poll \
   -H "Authorization: Bearer <POLL_SECRET>"
 ```
+
+## bird-sync (thumbnail fetcher)
+
+`bird-sync/` is a small standalone Docker service — not part of the Worker,
+not deployed by Cloudflare. It's meant to run on a home server (or anywhere
+with a stable outbound connection) and handles the one piece that can't run
+on Workers: Macaulay Library's thumbnail search API sits behind a
+client-side proof-of-work bot-check that blocks Cloudflare's `fetch()`.
+`bird-sync` solves that challenge itself, fetches thumbnail URLs for
+pending species, and pushes them to the Worker over two authenticated
+routes (`GET /admin/thumbnails/pending`, `POST /admin/thumbnails`).
+
+```bash
+cd bird-sync
+cp .env.local.example .env.local   # for testing against `wrangler dev`
+cp .env.prod.example .env.prod     # for the real deployment
+
+just build
+just start       # local: talks to wrangler dev on localhost
+just start-prod  # prod: talks to the deployed Worker
+just poll          # force an immediate poll cycle, no restart needed
+just logs
+just stop
+```
+
+See the `## bird-sync` section in `CLAUDE.md` for the full design rationale
+(the Anubis bot-check, how auth works end-to-end, the docker-compose
+networking split between local/prod) and operational detail.
 
 ## Data notices
 
