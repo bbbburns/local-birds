@@ -26,15 +26,17 @@ below. Everything else stays fully serverless.
 
 ```mermaid
 flowchart TB
-    ebird[("eBird API")]
-    cron["Cron Trigger<br/>(hourly)"]
-    browser["Browser<br/>birds.burns.sh"]
+    subgraph client["Client"]
+        browser["Browser<br/>birds.burns.sh"]
+    end
 
     subgraph cf["Cloudflare"]
+        cron["Cron Trigger<br/>(hourly)"]
         worker["Worker<br/>(Hono)"]
         d1[("D1<br/>sightings + species")]
         access["Access<br/>Service Token policy"]
         admin["/admin/thumbnails*<br/>routes"]
+        cron --> worker
         worker <--> d1
         access -.gates.-> admin
         admin <--> d1
@@ -44,26 +46,38 @@ flowchart TB
         birdsync["bird-sync<br/>(Docker)"]
     end
 
-    macaulay[("Macaulay Library API<br/>(behind Anubis PoW)")]
+    subgraph cornell["Cornell Lab of Ornithology"]
+        ebird[("eBird API")]
+        search[("Macaulay Library<br/>Search API<br/>(behind Anubis PoW)")]
+        cdn[("Media CDN<br/>(thumbnail images)")]
+    end
 
-    cron --> worker
+    client ~~~ cf
+    cf ~~~ cornell
+
+    browser -- "GET /<br/>renders HTML (img src → CDN)" --> worker
+    browser -- "fetch thumbnail image" --> cdn
+
     worker -- poll sightings --> ebird
     ebird -- observations --> worker
-    worker -- render --> browser
 
-    birdsync -- "solve PoW,<br/>fetch thumbnail URL" --> macaulay
-    macaulay -- thumbnail URL --> birdsync
+    birdsync -- "solve PoW,<br/>look up thumbnail URL" --> search
+    search -- thumbnail URL --> birdsync
     birdsync -- "Bearer secret +<br/>Access token" --> access
     admin -- "GET pending /<br/>POST results" --> birdsync
 ```
 
+`eBird`, the Macaulay Library search API, and the media CDN are grouped under
+`Cornell Lab of Ornithology` since all three are that org's services.
+
 Sightings are fully serverless end to end: an hourly Cron Trigger polls
 eBird, writes to D1, and the Worker renders the site straight from there.
-Thumbnails are the one piece that can't run on Workers — Macaulay's search
-API is gated by a client-side proof-of-work bot-check that blocks
-Cloudflare's `fetch()`, so `bird-sync` solves it from a home server instead,
-authenticating with a dedicated secret plus a Cloudflare Access Service
-Token before it can reach `/admin/thumbnails*`.
+Thumbnails are a two-step handoff: `bird-sync` (behind Anubis PoW) only
+*looks up* the thumbnail URL from Macaulay's search API and pushes that URL
+into D1 — it never touches image bytes. The Worker renders that URL into
+`<img src>`, and it's the **browser** that fetches the actual image, directly
+from Cornell's media CDN (a different, non-PoW-gated host), bypassing both
+the Worker and `bird-sync` entirely.
 
 ## Stack
 
