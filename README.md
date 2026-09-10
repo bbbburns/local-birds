@@ -64,7 +64,7 @@ flowchart TB
     birdsync -- "solve PoW,<br/>look up thumbnail URL" --> search
     search -- thumbnail URL --> birdsync
     birdsync -- "Bearer secret +<br/>Access token" --> access
-    admin -- "GET pending /<br/>POST results" --> birdsync
+    birdsync -- "GET pending /<br/>POST results" --> admin
 ```
 
 `eBird`, the Macaulay Library search API, and the media CDN are grouped under
