@@ -108,6 +108,14 @@ export async function getSpeciesMissingThumbnails(
   return new Set(speciesCodes.filter((c) => !alreadyFetched.has(c)));
 }
 
+export async function getAllSpeciesMissingThumbnails(db: D1Database): Promise<string[]> {
+  const { results } = await db.prepare(
+    `SELECT DISTINCT s.species_code FROM sightings s
+     WHERE NOT EXISTS (SELECT 1 FROM species sp WHERE sp.species_code = s.species_code)`
+  ).all<{ species_code: string }>();
+  return results.map((r) => r.species_code);
+}
+
 export async function getStaleThumbnails(db: D1Database, maxAgeDays = 30, limit = 20): Promise<string[]> {
   const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString();
   const { results } = await db.prepare(

@@ -49,3 +49,8 @@ export interface WeekGrid {
   canGoNext: boolean;
   label: string; // e.g. "April 2026" or "Mar – Apr 2026"
 }
+
+export interface ThumbnailUpdate {
+  species_code: string;
+  thumbnail_url: string | null;
+}

@@ -8,7 +8,11 @@ import {
   getPollStatus,
   countUniqueSpeciesInRange,
   getCommentsForDate,
+  getAllSpeciesMissingThumbnails,
+  getStaleThumbnails,
+  upsertSpeciesThumbnail,
 } from './db';
+import type { ThumbnailUpdate } from './types';
 import { buildWeekGrid, todayEastern } from './calendarUtil';
 import { runPoll } from './poller';
 import { IndexPage } from './templates/Index';
@@ -142,6 +146,40 @@ app.post('/admin/poll', async (c) => {
     return c.text('Poll failed', 500);
   }
   return c.redirect('/');
+});
+
+app.get('/admin/thumbnails/pending', async (c) => {
+  const auth = c.req.header('Authorization');
+  if (!auth || auth !== `Bearer ${c.env.POLL_SECRET}`) {
+    return c.text('Unauthorized', 401);
+  }
+  const [missing, stale] = await Promise.all([
+    getAllSpeciesMissingThumbnails(c.env.DB),
+    getStaleThumbnails(c.env.DB),
+  ]);
+  const speciesCodes = [...new Set([...missing, ...stale])];
+  return c.json({ species_codes: speciesCodes });
+});
+
+app.post('/admin/thumbnails', async (c) => {
+  const auth = c.req.header('Authorization');
+  if (!auth || auth !== `Bearer ${c.env.POLL_SECRET}`) {
+    return c.text('Unauthorized', 401);
+  }
+  let body: { updates?: ThumbnailUpdate[] };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.text('Invalid JSON', 400);
+  }
+  const updates = body.updates ?? [];
+  let updated = 0;
+  for (const u of updates) {
+    if (!u.species_code || u.thumbnail_url === null) continue;
+    await upsertSpeciesThumbnail(c.env.DB, u.species_code, u.thumbnail_url);
+    updated++;
+  }
+  return c.json({ updated });
 });
 
 app.get('/health', async (c) => {
