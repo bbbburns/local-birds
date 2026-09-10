@@ -108,6 +108,8 @@ Port from `../vega-vireos/app/routes.py`. Use Hono handlers.
 | GET | `/health` | — | JSON liveness check; runs `SELECT 1` against D1, returns `{status: "ok"}`/200 or `{status: "error"}`/503. Polled by an external monitor (Home Assistant `rest` sensor). No auth. |
 | GET | `/how-it-works` | `howItWorks` | Static info page |
 | GET | `/how-to-contribute` | `howToContribute` | Static info page |
+| GET | `/admin/thumbnails/pending` | — | Returns `{species_codes: [...]}` — species with no thumbnail or a stale (>30d) one. Auth via `THUMBNAIL_PUSH_SECRET` (see below). Consumed by `bird-sync/` (see [bird-sync](#bird-sync-thumbnail-home-helper)). |
+| POST | `/admin/thumbnails` | — | Body `{updates: [{species_code, thumbnail_url}]}`, writes to the `species` table. Auth via `THUMBNAIL_PUSH_SECRET`. Strict input validation (see [bird-sync](#bird-sync-thumbnail-home-helper)): rejects malformed `species_code`/`thumbnail_url`, caps batch size at 200, fails the whole batch (400) on the first bad entry rather than partially applying it. |
 
 **Admin poll auth**: The original restricts to `127.0.0.1`. In Workers there is
 no localhost concept. Replace with a secret token check:
@@ -115,6 +117,12 @@ no localhost concept. Replace with a secret token check:
 Authorization: Bearer <POLL_SECRET>
 ```
 Store `POLL_SECRET` as a Worker secret (`wrangler secret put POLL_SECRET`).
+
+`/admin/thumbnails*` use the same `Authorization: Bearer` pattern but a
+**separate** secret, `THUMBNAIL_PUSH_SECRET` — deliberately not shared with
+`POLL_SECRET`, since these routes write to D1 (bigger blast radius than
+triggering a poll) and are called by an external service (`bird-sync/`)
+rather than only from within this repo's own admin UI.
 
 **Poll footer timestamps**: The original uses `astimezone()` to convert UTC to
 America/New_York. In Workers use `Intl.DateTimeFormat` with
@@ -148,6 +156,59 @@ than being locked out for the 30-day window.
 
 **Rate limiting**: If eBird returns HTTP 429, log a warning and record a failed
 poll status without throwing. Retry naturally on next cron tick.
+
+## bird-sync (thumbnail home helper)
+
+`bird-sync/` is a standalone Docker service, **not part of the Worker
+build** — it runs on the home server (`brian`), not on Cloudflare.
+
+**Why it exists**: `search.macaulaylibrary.org` (the Macaulay Library
+thumbnail search API) sits behind [Anubis](https://github.com/TecharoHQ/anubis),
+a real client-side proof-of-work bot-check — not just an IP-reputation
+fluke, it blocks `fetch()` from Workers *and* from the home network.
+`bird-sync` solves the PoW challenge itself (algorithm read directly from
+Anubis's own MIT-licensed client JS — a documented, client-solvable
+Hashcash-style puzzle any JS runtime is meant to pass, not a security
+bypass) and pushes the resulting thumbnail URLs back to this Worker.
+
+**How it talks to the Worker**: polls `GET /admin/thumbnails/pending` for
+species needing a thumbnail, fetches each from Macaulay, `POST
+/admin/thumbnails` with the results — both authenticated via
+`THUMBNAIL_PUSH_SECRET` (see Environment/Secrets above). Configured with a
+single `THUMBNAIL_WORKER_URL` (`http://localhost:8787` locally,
+`https://birds.burns.sh` in prod) — both admin paths are derived from it in
+`bird-sync/src/urls.ts`, so there's only one URL to keep in sync.
+
+**Operating it** (`bird-sync/justfile`):
+```bash
+just build          # docker compose build
+just start          # docker compose up -d (local: host networking, reaches wrangler dev)
+just start-prod     # docker compose -f docker-compose.yml up -d (bridge networking, no local-host access)
+just poll           # docker kill -s SIGUSR1 — forces an immediate poll cycle, no restart
+just logs           # docker compose logs -f
+just stop           # docker compose down
+```
+`docker-compose.override.yml` adds `network_mode: host`, auto-merged by
+plain `docker compose`/`just` commands — needed locally to reach
+`wrangler dev` on the same host (the default bridge network can't see the
+host's `localhost`). It's excluded by `just start-prod`, since prod's
+`THUMBNAIL_WORKER_URL` is a public HTTPS domain — bridge networking is
+sufficient there and keeps the container's network exposure minimal on an
+always-on home-server service.
+
+**Cloudflare Access**: `/admin/*` is additionally gated by a Zero Trust
+Access Service Token policy (dashboard-only config, not in this repo) —
+chosen over IP-allowlisting since the home network's public IP is dynamic.
+`bird-sync` sends `CF-Access-Client-Id`/`CF-Access-Client-Secret` headers
+when `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET` are set in its `.env`
+(no-op locally, where Access doesn't front `localhost`).
+
+**Cloudflare dashboard build-path filtering**: pushes to `main` normally
+trigger a Cloudflare Workers Build. Since `bird-sync/` is deployed
+separately (to `brian`, not Cloudflare), a push touching only
+`bird-sync/**` should not trigger a Worker rebuild — configure this under
+Workers & Pages → this Worker → Settings → Builds → **Build watch paths**
+(dashboard-only, not expressible in a repo file).
 
 ## Templates
 
@@ -235,11 +296,13 @@ invocation_logs = true
 |---|---|---|
 | `EBIRD_API_KEY` | `wrangler secret put EBIRD_API_KEY` | Required |
 | `POLL_SECRET` | `wrangler secret put POLL_SECRET` | For `/admin/poll` auth |
+| `THUMBNAIL_PUSH_SECRET` | `wrangler secret put THUMBNAIL_PUSH_SECRET` (or `wrangler versions secret put ...` if the latest Worker version isn't currently deployed — see [bird-sync](#bird-sync-thumbnail-home-helper)) | For `/admin/thumbnails*` auth. Generate with `openssl rand -hex 32` — don't reuse `POLL_SECRET`'s value. |
 
 For local dev, put them in `.dev.vars` (gitignored):
 ```
 EBIRD_API_KEY=your_key_here
 POLL_SECRET=anything
+THUMBNAIL_PUSH_SECRET=anything
 ```
 
 ## Development Setup
@@ -339,6 +402,7 @@ bug fix that was not backported to the original.
 | Admin auth | Original restricts `/admin/poll` to `127.0.0.1`. Workers has no localhost concept; replaced with `Authorization: Bearer <POLL_SECRET>`. |
 | `src/templates/WeekStrip.tsx` | Past days with no sightings are clickable (show "No birds were spotted on this date."). Original only made days with data clickable. Days remain visually inactive; only future days are non-clickable. |
 | `src/calendarUtil.ts` `EARLIEST_DATE` | Back-navigation is disabled when navigating before `2026-04-03` (project start date; no data exists before this). Computed via `canGoPrev` in `WeekGrid`. |
+| Thumbnail fetching | The Worker's own in-process `fetchThumbnail()` in `src/poller.ts` still runs on every poll, but is best-effort only — Macaulay's search API blocks Workers via an Anubis bot-check (see [bird-sync](#bird-sync-thumbnail-home-helper)). Real thumbnail coverage comes from `bird-sync/`, a separate home-server service with no Python/original-app counterpart. |
 
 ## Testing
 

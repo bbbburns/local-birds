@@ -134,6 +134,144 @@ describe('POST /admin/poll', () => {
   });
 });
 
+describe('GET /admin/thumbnails/pending', () => {
+  it('returns 401 with no auth header', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails/pending');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 with wrong secret', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails/pending', {
+      headers: { Authorization: 'Bearer wrong-secret' },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns species missing a thumbnail', async () => {
+    await upsertSightings(env.DB, [sighting]);
+    const res = await SELF.fetch('http://localhost/admin/thumbnails/pending', {
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ species_codes: string[] }>();
+    expect(body.species_codes).toContain('norcar');
+  });
+});
+
+const validUpdate = {
+  species_code: 'norcar',
+  thumbnail_url: 'https://cdn.download.ams.birds.cornell.edu/api/v1/asset/123456/320',
+};
+
+describe('POST /admin/thumbnails', () => {
+  it('returns 401 with no auth header', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      body: JSON.stringify({ updates: [validUpdate] }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 with wrong secret (POLL_SECRET no longer works here)', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.POLL_SECRET}` },
+      body: JSON.stringify({ updates: [validUpdate] }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('writes a valid update and returns the count', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({ updates: [validUpdate] }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ updated: 1 });
+    const row = await env.DB.prepare('SELECT thumbnail_url FROM species WHERE species_code = ?')
+      .bind('norcar').first<{ thumbnail_url: string }>();
+    expect(row?.thumbnail_url).toBe(validUpdate.thumbnail_url);
+  });
+
+  it('rejects invalid JSON', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: 'not json',
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a missing updates field', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an empty updates array', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({ updates: [] }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects more than 200 updates', async () => {
+    const updates = Array.from({ length: 201 }, () => validUpdate);
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({ updates }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a malformed species_code', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({ updates: [{ ...validUpdate, species_code: 'NOT-VALID!' }] }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a thumbnail_url on the wrong host', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({ updates: [{ ...validUpdate, thumbnail_url: 'https://evil.example.com/x.png' }] }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a non-https thumbnail_url', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({
+        updates: [{ ...validUpdate, thumbnail_url: validUpdate.thumbnail_url.replace('https:', 'http:') }],
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects when one entry in a batch is malformed', async () => {
+    const res = await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` },
+      body: JSON.stringify({ updates: [validUpdate, { species_code: 'ok', thumbnail_url: 'not-a-url' }] }),
+    });
+    expect(res.status).toBe(400);
+    const row = await env.DB.prepare('SELECT * FROM species WHERE species_code = ?').bind('norcar').first();
+    expect(row).toBeNull();
+  });
+});
+
 describe('GET /how-it-works', () => {
   it('returns 200 with full page HTML', async () => {
     const res = await SELF.fetch('http://localhost/how-it-works');

@@ -1,0 +1,13 @@
+{
+  "name": "bird-sync",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "fetch": "tsc -p tsconfig.json && node dist/fetchThumbnail.js"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^22"
+  }
+}

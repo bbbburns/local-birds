@@ -8,7 +8,11 @@ import {
   getPollStatus,
   countUniqueSpeciesInRange,
   getCommentsForDate,
+  getAllSpeciesMissingThumbnails,
+  getStaleThumbnails,
+  upsertSpeciesThumbnail,
 } from './db';
+import type { ThumbnailUpdate } from './types';
 import { buildWeekGrid, todayEastern } from './calendarUtil';
 import { runPoll } from './poller';
 import { IndexPage } from './templates/Index';
@@ -142,6 +146,86 @@ app.post('/admin/poll', async (c) => {
     return c.text('Poll failed', 500);
   }
   return c.redirect('/');
+});
+
+// Only known-legitimate thumbnail URLs may be written — an https URL on
+// Macaulay's own asset CDN, matching MACAULAY_ASSET_BASE in poller.ts. Blocks
+// storing arbitrary URLs (which would later render site-wide as <img src>)
+// from a leaked/misused secret or a buggy caller.
+const THUMBNAIL_CDN_HOST = 'cdn.download.ams.birds.cornell.edu';
+// eBird species codes are lowercase alphanumeric, typically 4-8 chars
+// (e.g. 'norcar', 'blugrb1'); bounded generously either side.
+const SPECIES_CODE_RE = /^[a-z][a-z0-9]{1,9}$/;
+const MAX_THUMBNAIL_UPDATES = 200;
+
+function isValidThumbnailUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === 'https:' && parsed.hostname === THUMBNAIL_CDN_HOST;
+}
+
+function checkThumbnailAuth(c: { req: { header: (name: string) => string | undefined }; env: Env }): boolean {
+  const auth = c.req.header('Authorization');
+  return !!auth && auth === `Bearer ${c.env.THUMBNAIL_PUSH_SECRET}`;
+}
+
+app.get('/admin/thumbnails/pending', async (c) => {
+  if (!checkThumbnailAuth(c)) {
+    return c.text('Unauthorized', 401);
+  }
+  const [missing, stale] = await Promise.all([
+    getAllSpeciesMissingThumbnails(c.env.DB),
+    getStaleThumbnails(c.env.DB),
+  ]);
+  const speciesCodes = [...new Set([...missing, ...stale])];
+  return c.json({ species_codes: speciesCodes });
+});
+
+app.post('/admin/thumbnails', async (c) => {
+  if (!checkThumbnailAuth(c)) {
+    return c.text('Unauthorized', 401);
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.text('Invalid JSON', 400);
+  }
+  if (typeof body !== 'object' || body === null || !('updates' in body)) {
+    return c.text('Expected { updates: [...] }', 400);
+  }
+  const updates = (body as { updates: unknown }).updates;
+  if (!Array.isArray(updates)) {
+    return c.text('updates must be an array', 400);
+  }
+  if (updates.length === 0 || updates.length > MAX_THUMBNAIL_UPDATES) {
+    return c.text(`updates must contain 1-${MAX_THUMBNAIL_UPDATES} entries`, 400);
+  }
+  // Fail closed: reject the whole batch on the first malformed entry rather
+  // than silently skipping it — malformed input from an authenticated
+  // caller indicates a bug worth surfacing, not data worth partially eating.
+  for (const [i, u] of updates.entries()) {
+    if (
+      typeof u !== 'object' || u === null ||
+      typeof (u as ThumbnailUpdate).species_code !== 'string' ||
+      !SPECIES_CODE_RE.test((u as ThumbnailUpdate).species_code) ||
+      typeof (u as ThumbnailUpdate).thumbnail_url !== 'string' ||
+      !isValidThumbnailUrl((u as ThumbnailUpdate).thumbnail_url as string)
+    ) {
+      return c.text(`Invalid entry at index ${i}`, 400);
+    }
+  }
+
+  const validated = updates as { species_code: string; thumbnail_url: string }[];
+  for (const u of validated) {
+    await upsertSpeciesThumbnail(c.env.DB, u.species_code, u.thumbnail_url);
+  }
+  return c.json({ updated: validated.length });
 });
 
 app.get('/health', async (c) => {

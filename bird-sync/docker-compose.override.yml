@@ -1,0 +1,9 @@
+# Auto-merged by plain `docker compose` commands (no -f needed) — local
+# testing only. Adds host networking so the container can reach a Worker
+# running on the same host (e.g. `wrangler dev` at localhost:8787), which
+# the default bridge network in docker-compose.yml can't see. Excluded from
+# real deployment via `docker compose -f docker-compose.yml up -d`
+# (`just start-prod`).
+services:
+  bird-sync:
+    network_mode: host

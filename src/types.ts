@@ -2,6 +2,7 @@ export interface Env {
   DB: D1Database;
   EBIRD_API_KEY: string;
   POLL_SECRET: string;
+  THUMBNAIL_PUSH_SECRET: string;
 }
 
 export interface Sighting {
@@ -48,4 +49,9 @@ export interface WeekGrid {
   canGoPrev: boolean;
   canGoNext: boolean;
   label: string; // e.g. "April 2026" or "Mar – Apr 2026"
+}
+
+export interface ThumbnailUpdate {
+  species_code: string;
+  thumbnail_url: string | null;
 }
