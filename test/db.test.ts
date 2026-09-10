@@ -170,4 +170,20 @@ describe('species thumbnails', () => {
     const stale = await getStaleThumbnails(db());
     expect(stale).toContain('norcar');
   });
+
+  it('getStaleThumbnails returns the oldest entries first when capped by limit', async () => {
+    // Three stale species, no way to fetch them all in one LIMIT-2 batch —
+    // must consistently drain oldest-first so repeated calls make progress
+    // instead of arbitrarily re-selecting the same slice forever.
+    await db().batch([
+      db().prepare(`INSERT INTO species (species_code, thumbnail_url, fetched_at) VALUES (?, ?, ?)`)
+        .bind('amecro', null, '2025-01-01T00:00:00.000Z'),
+      db().prepare(`INSERT INTO species (species_code, thumbnail_url, fetched_at) VALUES (?, ?, ?)`)
+        .bind('blujay', null, '2025-02-01T00:00:00.000Z'),
+      db().prepare(`INSERT INTO species (species_code, thumbnail_url, fetched_at) VALUES (?, ?, ?)`)
+        .bind('carwre', null, '2025-03-01T00:00:00.000Z'),
+    ]);
+    const stale = await getStaleThumbnails(db(), 30, 2);
+    expect(stale).toEqual(['amecro', 'blujay']);
+  });
 });

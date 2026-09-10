@@ -119,7 +119,7 @@ export async function getAllSpeciesMissingThumbnails(db: D1Database): Promise<st
 export async function getStaleThumbnails(db: D1Database, maxAgeDays = 30, limit = 20): Promise<string[]> {
   const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000).toISOString();
   const { results } = await db.prepare(
-    `SELECT species_code FROM species WHERE fetched_at < ? LIMIT ?`
+    `SELECT species_code FROM species WHERE fetched_at < ? ORDER BY fetched_at ASC LIMIT ?`
   ).bind(cutoff, limit).all<{ species_code: string }>();
   return results.map((r) => r.species_code);
 }
