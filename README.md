@@ -137,7 +137,7 @@ npm test
 ```
 
 Test suites run inside the Workers runtime via
-`@cloudflare/vitest-pool-workers`:
+`@cloudflare/vitest-plugin`:
 
 - `test/calendarUtil.test.ts` — pure date arithmetic
 - `test/db.test.ts` — D1 query wrappers
