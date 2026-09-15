@@ -397,14 +397,15 @@ bug fix that was not backported to the original.
 ## Testing
 
 ```bash
-npm test   # vitest with @cloudflare/vitest-pool-workers
+npm test   # vitest with @cloudflare/vitest-plugin
 ```
 
 Tests run inside the Workers runtime (Miniflare). `test/setup.ts` applies the
-D1 schema via `beforeAll` before each test file. Three test files:
+D1 schema via `beforeAll` before each test file. Four test files:
 - `test/calendarUtil.test.ts` — pure date arithmetic (11 tests)
-- `test/db.test.ts` — D1 query wrappers (17 tests)
-- `test/routes.test.ts` — HTTP integration via `SELF` (15 tests)
+- `test/db.test.ts` — D1 query wrappers (18 tests)
+- `test/routes.test.ts` — HTTP integration via `SELF` (30 tests)
+- `test/poller.test.ts` — eBird/Macaulay poller logic (2 tests)
 
 **vitest config note**: config lives in `vitest.config.mts` (`.mts`, not `.ts`).
 It uses `cloudflareTest` as a Vite plugin (not `cloudflarePool` directly).
