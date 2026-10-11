@@ -335,7 +335,7 @@ export function Base({
         <link rel="preload" href="/cardinal.svg" as="image" type="image/svg+xml" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="apple-touch-icon" href="/favicon.svg" />
-        <script src="/htmx.min.js" />
+        <script src="/htmx-1.9.12.min.js" defer />
         <style dangerouslySetInnerHTML={{ __html: CSS }} />
       </head>
       <body>

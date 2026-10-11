@@ -19,7 +19,7 @@ Cloudflare Cron Trigger (hourly)
 HTTP requests
   └─ Worker (Hono router): reads D1 → renders HTML responses
 
-Static assets (htmx.min.js, favicon.svg, cardinal.svg, cardinal-card.png)
+Static assets (htmx-<version>.min.js, favicon.svg, cardinal.svg, cardinal-card.png)
   └─ Served directly by Workers Assets from ./public/
 ```
 
@@ -388,7 +388,7 @@ bug fix that was not backported to the original.
 | `src/poller.ts` | After each poll, fetches top-level checklist comments from `GET /v2/product/checklist/view/{subId}` for any new `sub_id`s. Stores in `checklist_comments` table (keyed by `sub_id`, not by sighting upsert key) so multiple observers' notes for the same day are all preserved. |
 | `src/calendarUtil.ts` `buildWeekGrid` | Accepts `anchor: string` (ISO date) instead of `anchorDate: Date` to avoid timezone-on-construction issues. |
 | `src/poller.ts` | Both eBird fetches (recent + notable) run in parallel via `Promise.all`. Original makes them sequentially. Notable endpoint failure sets `notableKeys=null` (skips overwriting notable) rather than falling back to an empty set. |
-| Asset paths | `/htmx.min.js`, `/cardinal.svg`, `/favicon.svg` — no `/static/` prefix (Workers Assets serves `public/` at root). |
+| Asset paths | `/htmx-1.9.12.min.js`, `/cardinal.svg`, `/favicon.svg` — no `/static/` prefix (Workers Assets serves `public/` at root). htmx is versioned in its filename so `public/_headers` can cache it as `immutable`; upgrading htmx means adding the new file and updating the `<script>` in `Base.tsx`. Images use a 1-day cache. |
 | Admin auth | Original restricts `/admin/poll` to `127.0.0.1`. Workers has no localhost concept; replaced with `Authorization: Bearer <POLL_SECRET>`. |
 | `src/templates/WeekStrip.tsx` | Past days with no sightings are clickable (show "No birds were spotted on this date."). Original only made days with data clickable. Days remain visually inactive; only future days are non-clickable. |
 | `src/calendarUtil.ts` `EARLIEST_DATE` | Back-navigation is disabled when navigating before `2026-04-03` (project start date; no data exists before this). Computed via `canGoPrev` in `WeekGrid`. |

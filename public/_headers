@@ -1,0 +1,14 @@
+# Cache-Control for Workers Assets. HTML is rendered by the Worker and
+# isn't affected by this file.
+
+# Version is in the filename: upgrading htmx means a new file, so the old
+# one can be cached forever.
+/htmx-*.min.js
+  Cache-Control: public, max-age=31536000, immutable
+
+# Unversioned images: cache for a day, then serve stale while revalidating
+# so an edited image still shows up within ~a day.
+/*.svg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/*.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
