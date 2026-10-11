@@ -5,7 +5,14 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
     groups:
+      test-toolchain:
+        patterns:
+          - "vitest"
+          - "@cloudflare/vitest-plugin"
+          - "wrangler"
       minor-and-patch:
         update-types:
           - minor
