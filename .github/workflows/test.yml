@@ -7,11 +7,26 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+  # bird-sync ships only compiled dist/, so a clean build is its real check.
+  bird-sync:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bird-sync
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22  # match the Dockerfile's node:22-alpine
+          cache: npm
+          cache-dependency-path: bird-sync/package-lock.json
+      - run: npm ci
+      - run: npm run build
