@@ -2,11 +2,6 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { fetchThumbnails } from '../src/poller';
 import { getSpeciesMissingThumbnails } from '../src/db';
-import type { Env } from '../src/types';
-
-declare module 'cloudflare:test' {
-  interface ProvidedEnv extends Env {}
-}
 
 const db = () => env.DB;
 const noopLog = () => {};

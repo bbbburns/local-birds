@@ -2,11 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { upsertSightings, updatePollStatus } from '../src/db';
 import { todayEastern } from '../src/calendarUtil';
-import type { Env } from '../src/types';
-
-declare module 'cloudflare:test' {
-  interface ProvidedEnv extends Env {}
-}
 
 const TODAY = todayEastern();
 

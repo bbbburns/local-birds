@@ -11,12 +11,6 @@ import {
   getSpeciesMissingThumbnails,
   getStaleThumbnails,
 } from '../src/db';
-import type { Env } from '../src/types';
-
-// Give the test env the DB binding type.
-declare module 'cloudflare:test' {
-  interface ProvidedEnv extends Env {}
-}
 
 const db = () => env.DB;
 

@@ -398,6 +398,7 @@ bug fix that was not backported to the original.
 
 ```bash
 npm test   # vitest with @cloudflare/vitest-plugin
+npm run typecheck   # tsc --noEmit (also runs in CI)
 ```
 
 Tests run inside the Workers runtime (Miniflare). `test/setup.ts` applies the
