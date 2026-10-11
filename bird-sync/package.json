@@ -7,7 +7,7 @@
     "fetch": "tsc -p tsconfig.json && node dist/fetchThumbnail.js"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "typescript": "^7",
     "@types/node": "^26"
   }
 }
