@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { JSX } from 'hono/jsx/jsx-runtime';
 import { RegExpRouter } from 'hono/router/reg-exp-router';
 import type { Env } from './types';
 import {
