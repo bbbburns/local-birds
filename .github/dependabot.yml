@@ -1,3 +1,5 @@
+# Shared Dependabot standard for bbbburns/* Cloudflare Workers repos.
+# Keep the npm "/" block identical across repos; add per-repo entries below it.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,12 +10,63 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      test-toolchain:
+      # Coupled tools move together, majors included (first match wins, so keep this first).
+      cloudflare-toolchain:
+        applies-to: version-updates
         patterns:
-          - "vitest"
-          - "@cloudflare/vitest-plugin"
           - "wrangler"
+          - "vitest"
+          - "@cloudflare/*"
+      # Everything else: one PR for minor+patch; majors arrive as individual PRs.
       minor-and-patch:
+        applies-to: version-updates
         update-types:
           - minor
           - patch
+      # One PR for security fixes instead of one per advisory.
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # bird-sync subproject (Node container, no Cloudflare deps).
+  - package-ecosystem: npm
+    directory: /bird-sync
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /bird-sync
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    ignore:
+      # Node majors include non-LTS releases; bump LTS manually.
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
