@@ -1,4 +1,4 @@
-import type { Sighting, PollStatus, ChecklistComment } from './types';
+import type { Sighting, PollStatus, SyncStatus, ChecklistComment } from './types';
 
 export async function getSightingsForDate(db: D1Database, obsDate: string): Promise<Sighting[]> {
   const { results } = await db.prepare(
@@ -90,9 +90,48 @@ export async function updatePollStatus(
   success: boolean,
   count: number
 ): Promise<void> {
+  // Upsert rather than INSERT OR REPLACE so a failed poll keeps the previous
+  // last_success_at instead of nulling it.
   await db.prepare(
-    `INSERT OR REPLACE INTO poll_status (id, polled_at, success, count) VALUES (1, ?, ?, ?)`
-  ).bind(polledAt, success ? 1 : 0, count).run();
+    `INSERT INTO poll_status (id, polled_at, success, count, last_success_at)
+     VALUES (1, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       polled_at = excluded.polled_at,
+       success = excluded.success,
+       count = excluded.count,
+       last_success_at = COALESCE(excluded.last_success_at, poll_status.last_success_at)`
+  ).bind(polledAt, success ? 1 : 0, count, success ? polledAt : null).run();
+}
+
+export async function getSyncStatus(db: D1Database): Promise<SyncStatus | null> {
+  return db.prepare(`SELECT * FROM sync_status WHERE id = 1`).first<SyncStatus>();
+}
+
+export async function recordSyncSeen(db: D1Database, at = new Date().toISOString()): Promise<void> {
+  await db.prepare(
+    `INSERT INTO sync_status (id, last_seen_at) VALUES (1, ?)
+     ON CONFLICT(id) DO UPDATE SET last_seen_at = excluded.last_seen_at`
+  ).bind(at).run();
+}
+
+export async function recordSyncPush(db: D1Database, at = new Date().toISOString()): Promise<void> {
+  await db.prepare(
+    `INSERT INTO sync_status (id, last_push_at) VALUES (1, ?)
+     ON CONFLICT(id) DO UPDATE SET last_push_at = excluded.last_push_at`
+  ).bind(at).run();
+}
+
+// Distinct sighted species, and how many of them have no thumbnail yet.
+export async function countThumbnailCoverage(
+  db: D1Database
+): Promise<{ total: number; missing: number }> {
+  const row = await db.prepare(
+    `SELECT COUNT(DISTINCT s.species_code) AS total,
+            COUNT(DISTINCT CASE WHEN sp.thumbnail_url IS NULL THEN s.species_code END) AS missing
+     FROM sightings s
+     LEFT JOIN species sp ON sp.species_code = s.species_code`
+  ).first<{ total: number; missing: number }>();
+  return { total: row?.total ?? 0, missing: row?.missing ?? 0 };
 }
 
 export async function getSpeciesMissingThumbnails(

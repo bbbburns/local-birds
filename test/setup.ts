@@ -39,7 +39,15 @@ beforeAll(async () => {
         id INTEGER PRIMARY KEY,
         polled_at TEXT NOT NULL,
         success INTEGER NOT NULL,
-        count INTEGER NOT NULL
+        count INTEGER NOT NULL,
+        last_success_at TEXT
+      )
+    `),
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS sync_status (
+        id INTEGER PRIMARY KEY,
+        last_seen_at TEXT,
+        last_push_at TEXT
       )
     `),
     env.DB.prepare(`

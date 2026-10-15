@@ -134,6 +134,14 @@ describe('updatePollStatus / getPollStatus', () => {
     expect(status?.success).toBe(0);
     expect(status?.count).toBe(0);
   });
+
+  it('keeps last_success_at across a failed poll', async () => {
+    await updatePollStatus(db(), '2026-04-10T12:00:00.000Z', true, 10);
+    await updatePollStatus(db(), '2026-04-10T13:00:00.000Z', false, 0);
+    const status = await getPollStatus(db());
+    expect(status?.polled_at).toBe('2026-04-10T13:00:00.000Z');
+    expect(status?.last_success_at).toBe('2026-04-10T12:00:00.000Z');
+  });
 });
 
 describe('species thumbnails', () => {
