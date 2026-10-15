@@ -59,6 +59,11 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
+    ignore:
+      # Track the Dockerfile's Node major; bump alongside the base image.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: docker
     directory: /bird-sync
