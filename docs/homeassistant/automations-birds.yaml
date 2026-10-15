@@ -1,0 +1,73 @@
+# Append to /homeassistant/automations.yaml, then Developer Tools → YAML →
+# Reload Automations. Entities come from rest.d-birds.yaml. Notifier matches
+# the existing site-health checks.
+- id: '1792060000001'
+  alias: birds ebird poll stale
+  description: 'Hourly eBird cron has not succeeded in 150+ min (or /health/pipeline unreachable)'
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.birds_ebird_poll_problem
+    to:
+    - 'on'
+    - unavailable
+    for:
+      minutes: 10
+  conditions: []
+  actions:
+  - action: notify.brian_smtp_jason_burns_team
+    metadata: {}
+    data:
+      title: birds eBird poll stale
+      message: >-
+        Last successful eBird poll {{ states('sensor.birds_ebird_poll_age_minutes') }} min ago
+        (last result={{ state_attr('sensor.birds_ebird_poll_age_minutes', 'ebird_last_result') }}).
+        Check Workers logs for vega-vireos; force a poll with POST /admin/poll.
+  mode: single
+- id: '1792060000002'
+  alias: birds sync not checking in
+  description: 'bird-sync on brian has not called /admin/thumbnails/pending in 150+ min'
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.birds_sync_problem
+    to:
+    - 'on'
+    for:
+      minutes: 10
+  conditions: []
+  actions:
+  - action: notify.brian_smtp_jason_burns_team
+    metadata: {}
+    data:
+      title: bird-sync not checking in
+      message: >-
+        bird-sync last reached birds.burns.sh {{ states('sensor.birds_sync_last_seen_minutes') }} min ago.
+        Check on brian: cd .../local-birds/bird-sync && just logs
+        (container down, Access service token expired, or THUMBNAIL_PUSH_SECRET mismatch).
+  mode: single
+- id: '1792060000003'
+  alias: birds thumbnails backlog
+  description: 'bird-sync is checking in but species without thumbnails keep piling up (Anubis/Macaulay change?)'
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.birds_species_missing_thumbnails
+    # Some species have no Macaulay photo and stay missing forever. Set this a
+    # few above the steady-state count you see after the first day.
+    above: 5
+    for:
+      hours: 24
+  conditions: []
+  actions:
+  - action: notify.brian_smtp_jason_burns_team
+    metadata: {}
+    data:
+      title: birds thumbnails backlog
+      message: >-
+        {{ states('sensor.birds_species_missing_thumbnails') }} of
+        {{ state_attr('sensor.birds_species_missing_thumbnails', 'species_total') }} species
+        have no thumbnail. bird-sync last pushed
+        {{ state_attr('sensor.birds_sync_last_seen_minutes', 'sync_last_push_hours') }} h ago.
+        Check: just logs on brian (fetch errors → Anubis challenge may have changed).
+  mode: single

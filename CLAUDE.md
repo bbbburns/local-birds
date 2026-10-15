@@ -39,7 +39,7 @@ free tier (100k req/day, 5GB D1, Cron Triggers included).
 
 ## D1 Schema
 
-The schema is split across three migrations (logical full schema shown below).
+The schema is split across four migrations (logical full schema shown below).
 Syntax is identical to the original SQLite — no translation needed.
 
 - `0001_initial.sql` — the four base tables (`sighting_days`, `sightings`,
@@ -48,6 +48,8 @@ Syntax is identical to the original SQLite — no translation needed.
   `sightings(obs_date)`, `idx_species_fetched_at` on `species(fetched_at)`
 - `0003_checklist_comments.sql` — the `checklist_comments` table and its
   `idx_checklist_comments_obs_date` index
+- `0004_pipeline_health.sql` — `poll_status.last_success_at` (backfilled) and
+  the single-row `sync_status` heartbeat table for bird-sync
 
 ```sql
 CREATE TABLE IF NOT EXISTS sighting_days (
@@ -80,7 +82,14 @@ CREATE TABLE IF NOT EXISTS poll_status (
     id INTEGER PRIMARY KEY,
     polled_at TEXT NOT NULL,
     success INTEGER NOT NULL,
-    count INTEGER NOT NULL
+    count INTEGER NOT NULL,
+    last_success_at TEXT          -- kept across failed polls
+);
+
+CREATE TABLE IF NOT EXISTS sync_status (
+    id INTEGER PRIMARY KEY,       -- always 1
+    last_seen_at TEXT,            -- last authenticated GET /admin/thumbnails/pending
+    last_push_at TEXT             -- last accepted POST /admin/thumbnails
 );
 
 CREATE TABLE IF NOT EXISTS checklist_comments (
@@ -106,9 +115,10 @@ Port from `../vega-vireos/app/routes.py`. Use Hono handlers.
 | GET | `/day/:obsDate` | `dayDetail` | Returns day_detail HTML fragment (HTMX target) |
 | POST | `/admin/poll` | `adminPoll` | Triggers immediate poll; auth via `POLL_SECRET` header (see below) |
 | GET | `/health` | — | JSON liveness check; runs `SELECT 1` against D1, returns `{status: "ok"}`/200 or `{status: "error"}`/503. Polled by an external monitor (Home Assistant `rest` sensor). No auth. |
+| GET | `/health/pipeline` | — | Freshness JSON for Home Assistant: `ok`, `ebird_ok`/`ebird_last_success_min`, `sync_ok`/`sync_last_seen_min`/`sync_last_push_hours`, `species_total`/`species_missing_thumbnails`. Each loop is stale after 150 min (`src/health.ts`). Always 200 while D1 answers (503 only if it doesn't) so HA sensors stay available; alerting keys off the flags. HA config lives in `docs/homeassistant/`. No auth. |
 | GET | `/how-it-works` | `howItWorks` | Static info page |
 | GET | `/how-to-contribute` | `howToContribute` | Static info page |
-| GET | `/admin/thumbnails/pending` | — | Returns `{species_codes: [...]}` — species with no thumbnail or a stale (>30d) one. Auth via `THUMBNAIL_PUSH_SECRET` (see below). Consumed by `bird-sync/` (see [bird-sync](#bird-sync-thumbnail-home-helper)). |
+| GET | `/admin/thumbnails/pending` | — | Returns `{species_codes: [...]}` — species with no thumbnail or a stale (>30d) one. Also records the bird-sync heartbeat (`sync_status.last_seen_at`). Auth via `THUMBNAIL_PUSH_SECRET` (see below). Consumed by `bird-sync/` (see [bird-sync](#bird-sync-thumbnail-home-helper)). |
 | POST | `/admin/thumbnails` | — | Body `{updates: [{species_code, thumbnail_url}]}`, writes to the `species` table. Auth via `THUMBNAIL_PUSH_SECRET`. Strict input validation (see [bird-sync](#bird-sync-thumbnail-home-helper)): rejects malformed `species_code`/`thumbnail_url`, caps batch size at 200, fails the whole batch (400) on the first bad entry rather than partially applying it. |
 
 **Admin poll auth**: The original restricts to `127.0.0.1`. In Workers there is
@@ -402,11 +412,13 @@ npm run typecheck   # tsc --noEmit (also runs in CI)
 ```
 
 Tests run inside the Workers runtime (Miniflare). `test/setup.ts` applies the
-D1 schema via `beforeAll` before each test file. Four test files:
+D1 schema via `beforeAll` before each test file (hand-written DDL — add new
+tables/columns there too when writing a migration). Five test files:
 - `test/calendarUtil.test.ts` — pure date arithmetic (11 tests)
-- `test/db.test.ts` — D1 query wrappers (18 tests)
-- `test/routes.test.ts` — HTTP integration via `SELF` (30 tests)
+- `test/db.test.ts` — D1 query wrappers (19 tests)
+- `test/routes.test.ts` — HTTP integration via `SELF` (33 tests)
 - `test/poller.test.ts` — eBird/Macaulay poller logic (2 tests)
+- `test/health.test.ts` — `buildPipelineHealth` thresholds and shape (5 tests)
 
 **vitest config note**: config lives in `vitest.config.mts` (`.mts`, not `.ts`).
 It uses `cloudflareTest` as a Vite plugin (not `cloudflarePool` directly).
@@ -428,7 +440,8 @@ All source files live at `../vega-vireos/app/`:
 | `static/` | Copy to `public/` as-is |
 
 Worker-only source with no Python counterpart: `src/types.ts` — shared TypeScript
-interfaces (`Env`, `Sighting`, `PollStatus`, `ChecklistComment`, `WeekCell`, `WeekGrid`).
+interfaces (`Env`, `Sighting`, `PollStatus`, `SyncStatus`, `ChecklistComment`, `WeekCell`, `WeekGrid`).
+Also `src/health.ts` — `buildPipelineHealth()` and staleness thresholds for `/health/pipeline`.
 
 ## Returning to this project
 

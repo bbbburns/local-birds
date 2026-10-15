@@ -12,7 +12,12 @@ import {
   getAllSpeciesMissingThumbnails,
   getStaleThumbnails,
   upsertSpeciesThumbnail,
+  getSyncStatus,
+  recordSyncSeen,
+  recordSyncPush,
+  countThumbnailCoverage,
 } from './db';
+import { buildPipelineHealth } from './health';
 import type { ThumbnailUpdate } from './types';
 import { buildWeekGrid, todayEastern } from './calendarUtil';
 import { runPoll } from './poller';
@@ -181,6 +186,7 @@ app.get('/admin/thumbnails/pending', async (c) => {
   const [missing, stale] = await Promise.all([
     getAllSpeciesMissingThumbnails(c.env.DB),
     getStaleThumbnails(c.env.DB),
+    recordSyncSeen(c.env.DB),
   ]);
   const speciesCodes = [...new Set([...missing, ...stale])];
   return c.json({ species_codes: speciesCodes });
@@ -226,6 +232,7 @@ app.post('/admin/thumbnails', async (c) => {
   for (const u of validated) {
     await upsertSpeciesThumbnail(c.env.DB, u.species_code, u.thumbnail_url);
   }
+  await recordSyncPush(c.env.DB);
   return c.json({ updated: validated.length });
 });
 
@@ -236,6 +243,25 @@ app.get('/health', async (c) => {
   } catch (err) {
     console.error('Health check DB failure', err);
     return c.json({ status: 'error', error: 'db_unavailable' }, 503);
+  }
+});
+
+// Pipeline freshness for Home Assistant: eBird cron + bird-sync heartbeat +
+// thumbnail coverage. Always 200 when the DB answers, so HA keeps the numeric
+// sensors available; alerting keys off `ok` / the per-loop flags. Liveness
+// stays on /health.
+app.get('/health/pipeline', async (c) => {
+  try {
+    const [poll, sync, coverage] = await Promise.all([
+      getPollStatus(c.env.DB),
+      getSyncStatus(c.env.DB),
+      countThumbnailCoverage(c.env.DB),
+    ]);
+    c.header('Cache-Control', 'no-store');
+    return c.json(buildPipelineHealth(poll, sync, coverage), 200);
+  } catch (err) {
+    console.error('Pipeline health DB failure', err);
+    return c.json({ ok: false, error: 'db_unavailable' }, 503);
   }
 });
 

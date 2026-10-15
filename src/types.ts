@@ -25,6 +25,13 @@ export interface PollStatus {
   polled_at: string;
   success: number;
   count: number;
+  last_success_at: string | null;
+}
+
+export interface SyncStatus {
+  id: number;
+  last_seen_at: string | null;
+  last_push_at: string | null;
 }
 
 export interface ChecklistComment {

@@ -24,6 +24,7 @@ beforeEach(async () => {
     env.DB.prepare('DELETE FROM sighting_days'),
     env.DB.prepare('DELETE FROM species'),
     env.DB.prepare('DELETE FROM poll_status'),
+    env.DB.prepare('DELETE FROM sync_status'),
   ]);
 });
 
@@ -57,6 +58,47 @@ describe('GET /health', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ status: 'ok' });
+  });
+});
+
+describe('GET /health/pipeline', () => {
+  const auth = { Authorization: `Bearer ${env.THUMBNAIL_PUSH_SECRET}` };
+
+  it('reports not ok with nulls on an empty database', async () => {
+    const res = await SELF.fetch('http://localhost/health/pipeline');
+    expect(res.status).toBe(200);
+    const body = await res.json<Record<string, unknown>>();
+    expect(body.ok).toBe(false);
+    expect(body.ebird_last_success_min).toBeNull();
+    expect(body.sync_last_seen_min).toBeNull();
+    expect(body.species_missing_thumbnails).toBe(0);
+  });
+
+  it('is ok after a fresh poll and a bird-sync cycle, and counts coverage', async () => {
+    await upsertSightings(env.DB, [sighting, { ...sighting, species_code: 'amerob' }]);
+    await updatePollStatus(env.DB, new Date().toISOString(), true, 2);
+    await SELF.fetch('http://localhost/admin/thumbnails/pending', { headers: auth });
+    await SELF.fetch('http://localhost/admin/thumbnails', {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates: [validUpdate] }),
+    });
+
+    const body = await (await SELF.fetch('http://localhost/health/pipeline'))
+      .json<Record<string, unknown>>();
+    expect(body.ok).toBe(true);
+    expect(body.ebird_last_result).toBe('ok');
+    expect(body.sync_last_seen_min).toBeLessThan(1);
+    expect(body.sync_last_push_hours).toBeLessThan(1);
+    expect(body.species_total).toBe(2);
+    expect(body.species_missing_thumbnails).toBe(1);
+  });
+
+  it('does not record a heartbeat for unauthenticated calls', async () => {
+    await SELF.fetch('http://localhost/admin/thumbnails/pending');
+    const body = await (await SELF.fetch('http://localhost/health/pipeline'))
+      .json<Record<string, unknown>>();
+    expect(body.sync_last_seen_min).toBeNull();
   });
 });
 

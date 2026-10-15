@@ -1,0 +1,48 @@
+# Replaces /homeassistant/rest.d/birds_burns_sh.yaml (full HA restart the
+# first time, since it adds new entities).
+#
+# /health is liveness only: Worker up and D1 answering.
+# /health/pipeline is freshness: always 200 while D1 answers, so these sensors
+# stay available and keep their history; alert on the *_ok flags and numbers.
+- resource: "https://birds.burns.sh/health"
+  scan_interval: 300
+  binary_sensor:
+    - name: "Birds Site Health"
+      device_class: problem
+      value_template: "{{ value_json.status != 'ok' }}"
+
+- resource: "https://birds.burns.sh/health/pipeline"
+  scan_interval: 300
+  timeout: 10
+  binary_sensor:
+    # device_class problem: on = something is wrong
+    - name: birds ebird poll problem
+      unique_id: birds_ebird_poll_problem
+      device_class: problem
+      value_template: "{{ not value_json.ebird_ok }}"
+    - name: birds sync problem
+      unique_id: birds_sync_problem
+      device_class: problem
+      value_template: "{{ not value_json.sync_ok }}"
+  sensor:
+    - name: birds ebird poll age minutes
+      unique_id: birds_ebird_poll_age_minutes
+      value_template: "{{ value_json.ebird_last_success_min }}"
+      unit_of_measurement: min
+      state_class: measurement
+      json_attributes:
+        - ebird_last_result
+        - ebird_last_count
+    - name: birds sync last seen minutes
+      unique_id: birds_sync_last_seen_minutes
+      value_template: "{{ value_json.sync_last_seen_min }}"
+      unit_of_measurement: min
+      state_class: measurement
+      json_attributes:
+        - sync_last_push_hours
+    - name: birds species missing thumbnails
+      unique_id: birds_species_missing_thumbnails
+      value_template: "{{ value_json.species_missing_thumbnails }}"
+      state_class: measurement
+      json_attributes:
+        - species_total
