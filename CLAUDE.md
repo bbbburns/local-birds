@@ -213,12 +213,17 @@ chosen over IP-allowlisting since the home network's public IP is dynamic.
 when `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET` are set in its `.env`
 (no-op locally, where Access doesn't front `localhost`).
 
-**Cloudflare dashboard build-path filtering**: pushes to `main` normally
-trigger a Cloudflare Workers Build. Since `bird-sync/` is deployed
-separately (to `brian`, not Cloudflare), a push touching only
-`bird-sync/**` should not trigger a Worker rebuild — configure this under
-Workers & Pages → this Worker → Settings → Builds → **Build watch paths**
-(dashboard-only, not expressible in a repo file).
+**Cloudflare build watch paths**: pushes to `main` trigger a Cloudflare
+Workers Build (and other branches a preview build), except when every changed
+file is excluded. Excluded: `.github/*`, `.gitignore`, `README.md`, `LICENSE`,
+`CLAUDE.md`, `bird-sync/*` (deployed separately to `brian`), `docs/*`, `img/*`,
+`migrations/*` (applied by hand, `wrangler deploy` doesn't run them), `test/*`,
+`vitest.config.mts`. Everything else builds. The setting lives only in
+Cloudflare (Worker → Settings → Build → Build watch paths, or the Builds API),
+not in this repo. It's managed from `~/Projects/cloudflare-config`
+(`desired/vega-vireos.json`, `apply.sh`). If you add a new top-level file or
+directory, check whether it belongs in that list. Leaving it out is the safe
+default.
 
 ## Templates
 
