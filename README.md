@@ -95,7 +95,7 @@ the Worker and `bird-sync` entirely.
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+ (wrangler refuses older versions)
 - A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free)
 - An [eBird API key](https://ebird.org/api/keygen)
 
@@ -143,6 +143,7 @@ Test suites run inside the Workers runtime via
 - `test/db.test.ts` — D1 query wrappers
 - `test/routes.test.ts` — HTTP integration via `SELF`
 - `test/poller.test.ts` — eBird/Macaulay poller logic
+- `test/health.test.ts` — `/health/pipeline` freshness thresholds
 
 ## Deployment
 
@@ -160,8 +161,22 @@ npx wrangler d1 migrations apply birds --remote
 **Ongoing deploys:** push to `main` — Cloudflare's CI/CD pipeline builds and
 deploys automatically.
 
-**When a new migration is added:** run `npx wrangler d1 migrations apply birds --remote`
-manually before or after pushing, since the build pipeline does not run migrations.
+**When a new migration is added:** the build pipeline does not run migrations,
+so apply it manually **before merging** the code that depends on it. Run it from
+the PR branch, since `main` won't contain the new migration file yet:
+
+```bash
+git checkout <pr-branch>
+npx wrangler d1 migrations apply birds --remote
+git checkout main
+```
+
+Use `migrations apply`, not `d1 execute --file`, so wrangler records the
+migration as applied. Keep migrations additive (new tables or nullable
+columns) so the currently deployed code keeps working until the merge.
+
+On a headless machine, wrangler authenticates with a `CLOUDFLARE_API_TOKEN`
+environment variable (Account → D1 → Edit) instead of `wrangler login`.
 
 The cron trigger (`0 * * * *`) is configured in `wrangler.toml` and activates
 automatically after deploy. Trigger a manual poll in production:
@@ -170,6 +185,19 @@ automatically after deploy. Trigger a manual poll in production:
 curl -X POST https://your-worker.workers.dev/admin/poll \
   -H "Authorization: Bearer <POLL_SECRET>"
 ```
+
+### Monitoring
+
+Two unauthenticated JSON endpoints:
+
+- `GET /health` — liveness check: the Worker is up and D1 answers (`{"status":"ok"}`, or 503).
+- `GET /health/pipeline` — freshness: the last successful eBird poll, the
+  last time bird-sync checked in or pushed a thumbnail, and how many species
+  have no thumbnail. `ok` goes false when either loop is more than 150 min
+  stale. It returns 200 whenever D1 answers, so monitors can keep graphing the numbers.
+
+Home Assistant `rest` sensors and alert automations for both endpoints live in
+[`docs/homeassistant/`](docs/homeassistant/).
 
 ## bird-sync (thumbnail fetcher)
 

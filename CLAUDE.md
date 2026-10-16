@@ -317,6 +317,10 @@ THUMBNAIL_PUSH_SECRET=anything
 
 ## Development Setup
 
+Requires Node 22+ (current wrangler refuses older). On `brian`, the Debian
+system Node is 20; the interactive shell gets LTS through zsh-nvm, but
+non-interactive SSH commands and cron jobs do not.
+
 ```bash
 npm install
 wrangler d1 create birds                         # one-time, copy ID into wrangler.toml
@@ -334,6 +338,13 @@ Deploy to production:
 wrangler d1 migrations apply birds --remote     # run against production D1 (manual step)
 git push                                        # triggers Cloudflare auto-build and deploy
 ```
+
+**Migration order:** apply a new migration to `--remote` *before* merging the
+code that reads it, running from the PR branch (`main` doesn't have the file
+yet, so wrangler reports "No migrations to apply"). Keep migrations additive so
+the live code survives the gap. Never use `d1 execute --file` for a migration,
+because wrangler won't record it, and a later `migrations apply` would re-run it. Headless
+auth is `CLOUDFLARE_API_TOKEN` in the environment, not `wrangler login`.
 
 **Note:** `wrangler deploy` is no longer used — the repo is connected to Cloudflare's
 CI/CD pipeline which deploys automatically on push to `main`. Migrations must still
