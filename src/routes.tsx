@@ -18,6 +18,7 @@ import {
   countThumbnailCoverage,
 } from './db';
 import { buildPipelineHealth } from './health';
+import { checkBearer } from './auth';
 import type { ThumbnailUpdate } from './types';
 import { buildWeekGrid, todayEastern } from './calendarUtil';
 import { runPoll } from './poller';
@@ -141,8 +142,7 @@ app.get('/day/:obsDate', async (c) => {
 });
 
 app.post('/admin/poll', async (c) => {
-  const auth = c.req.header('Authorization');
-  if (!auth || auth !== `Bearer ${c.env.POLL_SECRET}`) {
+  if (!(await checkBearer(c.req.header('Authorization'), c.env.POLL_SECRET))) {
     return c.text('Unauthorized', 401);
   }
   try {
@@ -174,13 +174,12 @@ function isValidThumbnailUrl(url: string): boolean {
   return parsed.protocol === 'https:' && parsed.hostname === THUMBNAIL_CDN_HOST;
 }
 
-function checkThumbnailAuth(c: { req: { header: (name: string) => string | undefined }; env: Env }): boolean {
-  const auth = c.req.header('Authorization');
-  return !!auth && auth === `Bearer ${c.env.THUMBNAIL_PUSH_SECRET}`;
+function checkThumbnailAuth(c: { req: { header: (name: string) => string | undefined }; env: Env }): Promise<boolean> {
+  return checkBearer(c.req.header('Authorization'), c.env.THUMBNAIL_PUSH_SECRET);
 }
 
 app.get('/admin/thumbnails/pending', async (c) => {
-  if (!checkThumbnailAuth(c)) {
+  if (!(await checkThumbnailAuth(c))) {
     return c.text('Unauthorized', 401);
   }
   const [missing, stale] = await Promise.all([
@@ -193,7 +192,7 @@ app.get('/admin/thumbnails/pending', async (c) => {
 });
 
 app.post('/admin/thumbnails', async (c) => {
-  if (!checkThumbnailAuth(c)) {
+  if (!(await checkThumbnailAuth(c))) {
     return c.text('Unauthorized', 401);
   }
 
