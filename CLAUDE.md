@@ -209,12 +209,14 @@ host's `localhost`). It's excluded by `just start-prod`, since prod's
 sufficient there and keeps the container's network exposure minimal on an
 always-on home-server service.
 
-**Cloudflare Access**: `/admin/*` is additionally gated by a Zero Trust
-Access Service Token policy (dashboard-only config, not in this repo) —
-chosen over IP-allowlisting since the home network's public IP is dynamic.
-`bird-sync` sends `CF-Access-Client-Id`/`CF-Access-Client-Secret` headers
-when `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET` are set in its `.env`
-(no-op locally, where Access doesn't front `localhost`).
+**Cloudflare Access**: there is **no** Zero Trust Access app in front of
+`birds.burns.sh/admin/*` (confirmed in the dashboard 2026-11-17; it was
+planned but never set up). The bearer secrets are the only gate, which is
+why `checkBearer()` fails closed. An unauthenticated request gets the
+Worker's own `401`, which is what `health.sh` in cloudflare-config expects.
+`bird-sync` can still send `CF-Access-Client-Id`/`CF-Access-Client-Secret`
+when `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET` are set in its `.env`,
+for use if an Access app is ever added. Leave them blank until then.
 
 **Cloudflare build watch paths**: pushes to `main` trigger a Cloudflare
 Workers Build (and other branches a preview build), except when every changed

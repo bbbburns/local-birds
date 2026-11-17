@@ -34,11 +34,9 @@ flowchart TB
         cron["Cron Trigger<br/>(hourly)"]
         worker["Worker<br/>(Hono)"]
         d1[("D1<br/>sightings + species")]
-        access["Access<br/>Service Token policy"]
         admin["/admin/thumbnails*<br/>routes"]
         cron --> worker
         worker <--> d1
-        access -.gates.-> admin
         admin <--> d1
     end
 
@@ -63,8 +61,7 @@ flowchart TB
 
     birdsync -- "solve PoW,<br/>look up thumbnail URL" --> search
     search -- thumbnail URL --> birdsync
-    birdsync -- "Bearer secret +<br/>Access token" --> access
-    birdsync -- "GET pending /<br/>POST results" --> admin
+    birdsync -- "GET pending / POST results<br/>(Bearer secret)" --> admin
 ```
 
 `eBird`, the Macaulay Library search API, and the media CDN are grouped under

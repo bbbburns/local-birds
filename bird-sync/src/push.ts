@@ -3,9 +3,9 @@ export interface ThumbnailUpdate {
   thumbnail_url: string;
 }
 
-// Cloudflare Access Service Token headers — set only once an Access policy
-// fronts /admin/* in prod. No-op locally (wrangler dev sits behind no
-// Access policy, so extra headers are simply ignored).
+// Cloudflare Access Service Token headers, sent only when both env vars are
+// set. No Access app fronts /admin/* today (see CLAUDE.md), so prod leaves
+// them blank; this stays for the case where one is added later.
 function accessHeaders(): Record<string, string> {
   const id = process.env.CF_ACCESS_CLIENT_ID;
   const secret = process.env.CF_ACCESS_CLIENT_SECRET;
