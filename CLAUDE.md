@@ -127,6 +127,9 @@ no localhost concept. Replace with a secret token check:
 Authorization: Bearer <POLL_SECRET>
 ```
 Store `POLL_SECRET` as a Worker secret (`wrangler secret put POLL_SECRET`).
+All admin routes check the header with `checkBearer()` in `src/auth.ts`: it
+fails closed when the secret is unset or empty (so `Bearer undefined` never
+matches) and compares SHA-256 digests with `crypto.subtle.timingSafeEqual`.
 
 `/admin/thumbnails*` use the same `Authorization: Bearer` pattern but a
 **separate** secret, `THUMBNAIL_PUSH_SECRET` — deliberately not shared with
@@ -429,12 +432,13 @@ npm run typecheck   # tsc --noEmit (also runs in CI)
 
 Tests run inside the Workers runtime (Miniflare). `test/setup.ts` applies the
 D1 schema via `beforeAll` before each test file (hand-written DDL — add new
-tables/columns there too when writing a migration). Five test files:
+tables/columns there too when writing a migration). Six test files:
 - `test/calendarUtil.test.ts` — pure date arithmetic (11 tests)
 - `test/db.test.ts` — D1 query wrappers (19 tests)
 - `test/routes.test.ts` — HTTP integration via `SELF` (33 tests)
 - `test/poller.test.ts` — eBird/Macaulay poller logic (2 tests)
 - `test/health.test.ts` — `buildPipelineHealth` thresholds and shape (5 tests)
+- `test/auth.test.ts` — `checkBearer` admin auth, including the empty-secret case (3 tests)
 
 **vitest config note**: config lives in `vitest.config.mts` (`.mts`, not `.ts`).
 It uses `cloudflareTest` as a Vite plugin (not `cloudflarePool` directly).
